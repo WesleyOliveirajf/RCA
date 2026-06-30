@@ -313,16 +313,21 @@ export async function sbCreateContato(dados) {
 
 // ── Qualificação ────────────────────────────────────────────────────────────
 
-export async function sbFetchQualificacaoPendentes() {
+export async function sbFetchQualificacoes() {
   const { data, error } = await supabase
     .from('qualificacoes')
     .select('*, pipeline_cards(*)')
-    .is('aprovado', null)
+    .order('created_at', { ascending: false })
   if (error) throw error
   return data ?? []
 }
 
-export async function sbEnrichQualificacaoPendentes(items) {
+export async function sbFetchQualificacaoPendentes() {
+  const qualificacoes = await sbFetchQualificacoes()
+  return qualificacoes.filter((q) => q.aprovado === null)
+}
+
+export async function sbEnrichQualificacoes(items) {
   if (!items.length) return []
 
   const clientes = await sbFetchClientes()
@@ -337,6 +342,8 @@ export async function sbEnrichQualificacaoPendentes(items) {
     }
   })
 }
+
+export const sbEnrichQualificacaoPendentes = sbEnrichQualificacoes
 
 export async function sbRegistrarQualificacao(cardId, dados) {
   const userId = await sessionUserId()

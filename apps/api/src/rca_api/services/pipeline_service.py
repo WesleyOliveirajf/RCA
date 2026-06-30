@@ -25,7 +25,7 @@ class PipelineService:
         self._repo = repo
 
     def listar(self, user: CurrentUser) -> list[dict]:
-        if user.perfil in ("supervisor", "admin"):
+        if user.perfil in ("supervisor", "admin", "superadmin"):
             return self._repo.listar_todos()
         return self._repo.listar_por_responsavel_ou_funil_aberto(user.id)
 
@@ -106,7 +106,7 @@ class PipelineService:
         }
 
     def liberar(self, card_id: str, user: CurrentUser) -> dict:
-        if user.perfil != "admin":
+        if user.perfil not in ("admin", "superadmin"):
             raise ForbiddenError("Somente administradores podem liberar leads")
 
         card = self.obter(card_id, user)

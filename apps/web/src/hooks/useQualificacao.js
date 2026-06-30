@@ -1,27 +1,27 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import {
-  sbFetchQualificacaoPendentes,
-  sbEnrichQualificacaoPendentes,
+  sbFetchQualificacoes,
+  sbEnrichQualificacoes,
   sbRegistrarQualificacao,
   sbAprovarQualificacao,
 } from '@/lib/supabaseData'
 
 export function useQualificacao() {
-  const [pendentes, setPendentes] = useState([])
+  const [qualificacoes, setQualificacoes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchPendentes = useCallback(async () => {
+  const fetchQualificacoes = useCallback(async () => {
     try {
       setLoading(true)
       let raw
       try {
-        raw = await api.get('/api/qualificacao/pendentes')
+        raw = await api.get('/api/qualificacao')
       } catch {
-        raw = await sbFetchQualificacaoPendentes()
+        raw = await sbFetchQualificacoes()
       }
-      setPendentes(await sbEnrichQualificacaoPendentes(raw))
+      setQualificacoes(await sbEnrichQualificacoes(raw))
       setError(null)
     } catch (err) {
       setError(err.message)
@@ -31,8 +31,8 @@ export function useQualificacao() {
   }, [])
 
   useEffect(() => {
-    fetchPendentes()
-  }, [fetchPendentes])
+    fetchQualificacoes()
+  }, [fetchQualificacoes])
 
   async function registrar(cardId, dados) {
     let result
@@ -41,7 +41,7 @@ export function useQualificacao() {
     } catch {
       result = await sbRegistrarQualificacao(cardId, dados)
     }
-    await fetchPendentes()
+    await fetchQualificacoes()
     return result
   }
 
@@ -52,17 +52,24 @@ export function useQualificacao() {
     } catch {
       result = await sbAprovarQualificacao(cardId, aprovado, observacoes)
     }
-    await fetchPendentes()
+    await fetchQualificacoes()
     return result
   }
 
+  const pendentes = qualificacoes.filter((q) => q.aprovado === null)
+  const aprovados = qualificacoes.filter((q) => q.aprovado === true)
+
   return {
+    qualificacoes,
     pendentes,
     totalPendentes: pendentes.length,
+    aprovados,
+    totalAprovados: aprovados.length,
+    totalQualificacoes: qualificacoes.length,
     loading,
     error,
     registrar,
     aprovar,
-    refetch: fetchPendentes,
+    refetch: fetchQualificacoes,
   }
 }

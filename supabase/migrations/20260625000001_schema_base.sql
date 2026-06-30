@@ -12,7 +12,7 @@ CREATE TABLE public.usuarios (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   nome TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
-  perfil TEXT NOT NULL CHECK (perfil IN ('vendedor', 'supervisor', 'admin')),
+  perfil TEXT NOT NULL CHECK (perfil IN ('vendedor', 'supervisor', 'admin', 'superadmin')),
   ativo BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()

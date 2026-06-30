@@ -3,6 +3,7 @@ import {
   Kanban,
   LayoutDashboard,
   Users,
+  UserCog,
   Star,
   Settings,
   ChevronLeft,
@@ -11,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
-const PERFIL_NIVEL = { vendedor: 1, supervisor: 2, admin: 3 }
+const PERFIL_NIVEL = { vendedor: 1, supervisor: 2, admin: 3, superadmin: 4 }
 
 const navItems = [
   {
@@ -41,6 +42,13 @@ const navItems = [
     icon: Star,
     minPerfil: 'supervisor',
     description: 'Aprovar leads',
+  },
+  {
+    to: '/usuarios',
+    label: 'Usuários',
+    icon: UserCog,
+    minPerfil: 'admin',
+    description: 'Gerenciar usuários',
   },
   {
     to: '/config',

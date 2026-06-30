@@ -23,8 +23,8 @@ CREATE POLICY "usuarios_select_authenticated"
 
 CREATE POLICY "usuarios_admin_all"
   ON public.usuarios FOR ALL TO authenticated
-  USING (public.fn_meu_perfil() = 'admin')
-  WITH CHECK (public.fn_meu_perfil() = 'admin');
+  USING (public.fn_meu_perfil() IN ('admin', 'superadmin'))
+  WITH CHECK (public.fn_meu_perfil() IN ('admin', 'superadmin'));
 
 -- CLIENTES
 CREATE POLICY "clientes_select_authenticated"

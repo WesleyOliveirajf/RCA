@@ -14,6 +14,14 @@ def get_service() -> QualificacaoService:
     return QualificacaoService(QualificacaoRepository(db), PipelineRepository(db))
 
 
+@router.get("")
+async def listar_qualificacoes(
+    _: SupervisorDep,
+    service: QualificacaoService = Depends(get_service),
+):
+    return service.listar_todas()
+
+
 @router.get("/pendentes")
 async def listar_pendentes(
     _: SupervisorDep,

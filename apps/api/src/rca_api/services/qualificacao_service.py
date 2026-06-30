@@ -49,6 +49,9 @@ class QualificacaoService:
     def listar_pendentes(self) -> list[dict]:
         return self._qual_repo.listar_pendentes()
 
+    def listar_todas(self) -> list[dict]:
+        return self._qual_repo.listar_todas()
+
     def obter(self, qualificacao_id: str) -> dict:
         qualificacao = self._qual_repo.buscar_por_id(qualificacao_id)
         if not qualificacao:

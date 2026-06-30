@@ -1,7 +1,7 @@
 import logging
 from typing import Literal
 
-Perfil = Literal["vendedor", "supervisor", "admin"]
+Perfil = Literal["vendedor", "supervisor", "admin", "superadmin"]
 
 ETAPAS_FUNIL_ABERTO = frozenset({"inativos", "primeiro_contato", "lead_qualificado"})
 
@@ -9,6 +9,7 @@ HIERARQUIA: dict[Perfil, int] = {
     "vendedor": 1,
     "supervisor": 2,
     "admin": 3,
+    "superadmin": 4,
 }
 
 
@@ -24,7 +25,7 @@ def pode_ver_card(
 ) -> bool:
     if etapa and etapa in ETAPAS_FUNIL_ABERTO:
         return True
-    if perfil in ("supervisor", "admin"):
+    if perfil in ("supervisor", "admin", "superadmin"):
         return True
     return responsavel_id == user_id
 
@@ -37,7 +38,7 @@ def pode_mover_para_etapa(
 ) -> bool:
     if etapa_destino in ETAPAS_FUNIL_ABERTO:
         return True
-    if perfil in ("supervisor", "admin"):
+    if perfil in ("supervisor", "admin", "superadmin"):
         return True
     return responsavel_id == user_id
 
@@ -50,7 +51,7 @@ def pode_interagir_com_card(
 ) -> bool:
     if etapa_atual and etapa_atual in ETAPAS_FUNIL_ABERTO:
         return True
-    if perfil in ("supervisor", "admin"):
+    if perfil in ("supervisor", "admin", "superadmin"):
         return True
     return responsavel_id == user_id
 

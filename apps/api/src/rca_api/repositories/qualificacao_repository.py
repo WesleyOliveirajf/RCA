@@ -29,6 +29,15 @@ class QualificacaoRepository:
         )
         return result.data or []
 
+    def listar_todas(self) -> list[dict]:
+        result = (
+            self._db.table("qualificacoes")
+            .select("*, pipeline_cards(*)")
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return result.data or []
+
     def listar_pendentes(self) -> list[dict]:
         result = (
             self._db.table("qualificacoes")

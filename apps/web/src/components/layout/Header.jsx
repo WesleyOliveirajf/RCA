@@ -15,6 +15,7 @@ const ROUTE_TITLES = {
   '/clientes': 'Clientes',
   '/dashboard': 'Dashboard',
   '/qualificacao': 'Qualificação',
+  '/usuarios': 'Usuários',
   '/config': 'Configurações',
 }
 
@@ -152,7 +153,7 @@ export function Header({ onMenuToggle }) {
             </div>
             <div className="hidden sm:block text-left">
               <p className="text-sm font-medium text-slate-700 leading-tight">
-                {profile?.nome || 'Usuário'}
+                {profile?.username || profile?.nome || 'Usuário'}
               </p>
               <p className="text-[11px] text-slate-400 capitalize leading-tight">
                 {profile?.perfil || '—'}

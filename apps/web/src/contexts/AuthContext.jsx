@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
     try {
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id, nome, email, perfil')
+        .select('id, nome, email, perfil, username')
         .eq('id', userId)
         .single()
       if (error) throw error
@@ -42,8 +42,18 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }
 
-  async function signIn(email, password) {
+  async function signIn(username, password) {
     try {
+      const trimmed = username.trim()
+      let email = `${trimmed.toLowerCase()}@rca.local`
+      if (trimmed.toLowerCase() !== 'superadmin') {
+        const { data } = await supabase
+          .from('usuarios')
+          .select('email')
+          .eq('username', trimmed)
+          .single()
+        if (data?.email) email = data.email
+      }
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
     } catch (err) {

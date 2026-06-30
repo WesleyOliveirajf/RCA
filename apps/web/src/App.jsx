@@ -9,23 +9,25 @@ import { ClientesPage } from '@/pages/ClientesPage'
 import { ClienteDetailPage } from '@/pages/ClienteDetailPage'
 import { QualificacaoPage } from '@/pages/QualificacaoPage'
 import { ConfigPage } from '@/pages/ConfigPage'
+import { UsuariosPage } from '@/pages/UsuariosPage'
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route index element={<PipelinePage />} />
-              <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="clientes" element={<ClientesPage />} />
-              <Route path="clientes/:id" element={<ClienteDetailPage />} />
-              <Route path="qualificacao" element={<QualificacaoPage />} />
-              <Route path="config" element={<ConfigPage />} />
-            </Route>
-          </Route>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route index element={<PipelinePage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="clientes" element={<ClientesPage />} />
+          <Route path="clientes/:id" element={<ClienteDetailPage />} />
+          <Route path="qualificacao" element={<QualificacaoPage />} />
+          <Route path="usuarios" element={<UsuariosPage />} />
+          <Route path="config" element={<ConfigPage />} />
+        </Route>
+      </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

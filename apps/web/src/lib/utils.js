@@ -33,13 +33,13 @@ export function precisaLiberacaoParaMover({ etapaAtual, etapaDestino, liberado }
 
 export function podeInteragirComCard({ perfil, responsavelId, userId, etapaAtual }) {
   if (etapaFunilAberto(etapaAtual)) return true
-  if (perfil === 'supervisor' || perfil === 'admin') return true
+  if (perfil === 'supervisor' || perfil === 'admin' || perfil === 'superadmin') return true
   return responsavelId === userId
 }
 
 export function podeMoverParaEtapa({ perfil, responsavelId, userId, etapaDestino }) {
   if (etapaFunilAberto(etapaDestino)) return true
-  if (perfil === 'supervisor' || perfil === 'admin') return true
+  if (perfil === 'supervisor' || perfil === 'admin' || perfil === 'superadmin') return true
   return responsavelId === userId
 }
 
@@ -53,7 +53,7 @@ export const MSG_LEAD_NAO_LIBERADO =
 
 /** Somente admins podem liberar leads na etapa lead_qualificado */
 export function podeLiberar({ perfil, etapaAtual, liberado }) {
-  return perfil === 'admin' && etapaAtual === 'lead_qualificado' && !liberado
+  return (perfil === 'admin' || perfil === 'superadmin') && etapaAtual === 'lead_qualificado' && !liberado
 }
 
 export const PRIORIDADE_CORES = {

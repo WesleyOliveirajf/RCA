@@ -7,7 +7,16 @@ import { ScoreForm } from '@/components/qualificacao/ScoreForm'
 import { EmptyState } from '@/components/common/EmptyState'
 
 export function QualificacaoPage() {
-  const { pendentes, totalPendentes, loading, error, registrar, refetch } = useQualificacao()
+  const {
+    pendentes,
+    totalPendentes,
+    totalAprovados,
+    totalQualificacoes,
+    loading,
+    error,
+    registrar,
+    refetch,
+  } = useQualificacao()
   const [expandido, setExpandido] = useState(null)
   const [salvos, setSalvos] = useState(new Set())
   const [submitting, setSubmitting] = useState(false)
@@ -74,8 +83,8 @@ export function QualificacaoPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <StatCard icon={Clock} label="Pendentes" value={totalPendentes} color="text-amber-600 bg-amber-50" />
-        <StatCard icon={CheckCircle} label="Aprovados" value="—" color="text-green-600 bg-green-50" />
-        <StatCard icon={Star} label="Total" value={totalPendentes} color="text-indigo-600 bg-indigo-50" />
+        <StatCard icon={CheckCircle} label="Aprovados" value={totalAprovados} color="text-green-600 bg-green-50" />
+        <StatCard icon={Star} label="Total" value={totalQualificacoes} color="text-indigo-600 bg-indigo-50" />
       </div>
 
       <div>
