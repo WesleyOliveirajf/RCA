@@ -1,0 +1,13 @@
+{
+  "name": "rca-torp",
+  "private": true,
+  "description": "Sistema RCA — monorepo (web + api)",
+  "scripts": {
+    "dev": "npm run dev --prefix apps/web",
+    "dev:web": "npm run dev --prefix apps/web",
+    "build:web": "npm run build --prefix apps/web",
+    "dev:api": "cd apps/api && set PYTHONPATH=src&& uvicorn rca_api.main:app --reload",
+    "sync:generate": "cd apps/api && set PYTHONPATH=src&& python scripts/generate_sync_sql.py",
+    "sync:apply": "cd apps/api && python scripts/apply_sync_batches.py"
+  }
+}

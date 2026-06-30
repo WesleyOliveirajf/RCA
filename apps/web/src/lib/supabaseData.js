@@ -1,0 +1,392 @@
+import { supabase } from './supabase'
+import { ETAPAS } from './utils'
+
+async function sessionUserId() {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.user?.id ?? null
+}
+
+// ── Clientes ────────────────────────────────────────────────────────────────
+
+export async function sbFetchClientes(filtros = {}) {
+  let query = supabase.from('clientes').select('*').limit(1000)
+  if (filtros.status) query = query.eq('status', filtros.status)
+  if (filtros.cidade) query = query.ilike('cidade', `%${filtros.cidade}%`)
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}
+
+export async function sbFetchCliente(id) {
+  const { data, error } = await supabase.from('clientes').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
+export async function sbFetchHistoricoCliente(clienteId) {
+  const { data, error } = await supabase
+    .from('historico_compras')
+    .select('*')
+    .eq('cliente_id', clienteId)
+    .order('data_pedido', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+// ── Pipeline ────────────────────────────────────────────────────────────────
+
+export async function sbFetchPipelineCards() {
+  const { data, error } = await supabase
+    .from('pipeline_cards')
+    .select('*')
+    .order('posicao', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function sbEnrichCardsWithClientes(cards) {
+  if (!cards.length) return []
+
+  const ids = [...new Set(cards.map((c) => c.cliente_id).filter(Boolean))]
+  let clientes = []
+  if (ids.length > 0 && ids.length <= 100) {
+    const { data, error } = await supabase.from('clientes').select('*').in('id', ids)
+    if (error) throw error
+    clientes = data ?? []
+  } else {
+    clientes = await sbFetchClientes()
+  }
+
+  const map = Object.fromEntries(clientes.map((c) => [c.id, c]))
+  return cards.map((card) => ({
+    ...card,
+    valor_proposta: card.valor_proposta != null ? Number(card.valor_proposta) : null,
+    cliente: map[card.cliente_id] ?? null,
+  }))
+}
+
+export async function sbMoverCard(cardId, etapaDestino, posicao, etapaAnterior) {
+  const { data, error } = await supabase
+    .from('pipeline_cards')
+    .update({ etapa: etapaDestino, posicao: posicao ?? 0 })
+    .eq('id', cardId)
+    .select()
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(error.message ?? 'Erro ao mover card no banco de dados.')
+  }
+  if (!data) {
+    throw new Error(
+      'Permissão negada ou card não encontrado. Verifique se sua sessão está ativa.'
+    )
+  }
+
+  const userId = await sessionUserId()
+  if (userId && etapaAnterior && etapaAnterior !== etapaDestino) {
+    const { error: atividadeErr } = await supabase.from('atividades').insert({
+      card_id: cardId,
+      usuario_id: userId,
+      acao: 'mover',
+      detalhes: { de: etapaAnterior, para: etapaDestino },
+    })
+    if (atividadeErr) {
+      console.warn('Atividade não registrada:', atividadeErr.message)
+    }
+  }
+  return data
+}
+
+export async function sbLiberarLead(cardId) {
+  const { data, error } = await supabase.rpc('fn_liberar_lead', { p_card_id: cardId })
+  if (error) throw error
+  return data
+}
+
+export async function sbDesqualificarLead(card, dados) {
+  const userId = await sessionUserId()
+  if (!userId) throw new Error('Usuário não autenticado')
+
+  const hoje = new Date()
+  const in90 = new Date(hoje)
+  in90.setDate(in90.getDate() + 90)
+  const in365 = new Date(hoje)
+  in365.setDate(in365.getDate() + 365)
+
+  const dataISO = (date) => date.toISOString().slice(0, 10)
+  const nutricao = ['timing_ruim', 'decisor_errado'].includes(dados.motivo)
+  const clienteUpdate = nutricao
+    ? {
+        status: 'desqualificado',
+        desqualificado_motivo: dados.motivo,
+        desqualificado_em: new Date().toISOString(),
+        nutricao_segmento: `nutricao_${dados.motivo}`,
+        comunicacao_ativa: true,
+        retencao_ate: null,
+        anonimizar_apos: null,
+      }
+    : {
+        status: 'desqualificado',
+        desqualificado_motivo: dados.motivo,
+        desqualificado_em: new Date().toISOString(),
+        nutricao_segmento: null,
+        comunicacao_ativa: false,
+        retencao_ate: dataISO(in365),
+        anonimizar_apos: dataISO(in365),
+      }
+
+  const { error: clienteError } = await supabase
+    .from('clientes')
+    .update(clienteUpdate)
+    .eq('id', card.cliente_id)
+  if (clienteError) throw clienteError
+
+  const { data: updatedCard, error: cardError } = await supabase
+    .from('pipeline_cards')
+    .update({ etapa: 'desqualificados', notas: dados.observacoes, proximo_contato: null })
+    .eq('id', card.id)
+    .select()
+    .single()
+  if (cardError) throw cardError
+
+  const acaoAutomatica = nutricao ? 'nutricao_90_dias' : 'retencao_curta_lgpd'
+  const { error: desqError } = await supabase.from('lead_desqualificacoes').insert({
+    card_id: card.id,
+    cliente_id: card.cliente_id,
+    usuario_id: userId,
+    motivo: dados.motivo,
+    checklist: dados.checklist,
+    observacoes: dados.observacoes,
+    acao_automatica: acaoAutomatica,
+    retencao_ate: clienteUpdate.retencao_ate,
+    anonimizar_apos: clienteUpdate.anonimizar_apos,
+  })
+  if (desqError) throw desqError
+
+  const tarefa = nutricao
+    ? {
+        titulo: 'Requalificar este lead em 90 dias',
+        tipo: 'requalificacao',
+        vencimento: dataISO(in90),
+      }
+    : {
+        titulo: 'Revisar retenção LGPD deste lead',
+        tipo: 'lgpd_revisao',
+        vencimento: dataISO(in365),
+      }
+
+  const { error: tarefaError } = await supabase.from('lead_tarefas').insert({
+    card_id: card.id,
+    cliente_id: card.cliente_id,
+    usuario_id: userId,
+    ...tarefa,
+  })
+  if (tarefaError) throw tarefaError
+
+  if (nutricao) {
+    const { error: nutricaoError } = await supabase.from('lead_nutricao').upsert(
+      {
+        card_id: card.id,
+        cliente_id: card.cliente_id,
+        motivo: dados.motivo,
+        segmento: `nutricao_${dados.motivo}`,
+        sequencia_email: 'educacional_requalificacao',
+        ativo: true,
+      },
+      { onConflict: 'cliente_id' }
+    )
+    if (nutricaoError) throw nutricaoError
+  }
+
+  return updatedCard
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
+
+export async function sbFetchDashboardFunil() {
+  const { data: rows, error } = await supabase
+    .from('pipeline_cards')
+    .select('etapa, score, clientes(valor_historico)')
+  if (error) throw error
+
+  const agg = Object.fromEntries(
+    ETAPAS.map((e) => [e.id, { etapa: e.id, total: 0, valor_historico_total: 0, _scores: [] }])
+  )
+
+  for (const row of rows ?? []) {
+    const bucket = agg[row.etapa]
+    if (!bucket) continue
+    bucket.total += 1
+    bucket.valor_historico_total += Number(row.clientes?.valor_historico ?? 0)
+    bucket._scores.push(row.score ?? 0)
+  }
+
+  const etapas = ETAPAS.map(({ id }) => {
+    const b = agg[id]
+    const total = b.total
+    return {
+      etapa: id,
+      total,
+      valor_medio: total ? b.valor_historico_total / total : 0,
+      valor_historico_total: b.valor_historico_total,
+      score_medio: b._scores.length
+        ? Math.round(b._scores.reduce((a, c) => a + c, 0) / b._scores.length)
+        : 0,
+    }
+  })
+
+  const totalClientes = rows?.length ?? 0
+  const posVenda = agg.pos_venda?.total ?? 0
+  const valorPipeline = etapas.reduce((s, e) => s + e.valor_historico_total, 0)
+
+  return {
+    etapas,
+    total_clientes: totalClientes,
+    taxa_conversao: totalClientes ? (posVenda / totalClientes) * 100 : 0,
+    valor_pipeline: valorPipeline,
+  }
+}
+
+export async function sbFetchTimeline(limite = 20) {
+  const { data, error } = await supabase
+    .from('atividades')
+    .select('*, usuarios(nome), pipeline_cards(cliente_id)')
+    .order('created_at', { ascending: false })
+    .limit(limite)
+  if (error) throw error
+  return data ?? []
+}
+
+export async function sbFetchContatosPendentes() {
+  const { data, error } = await supabase.from('v_contatos_hoje').select('*')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function sbFetchSyncStatus() {
+  const { data, error } = await supabase
+    .from('sync_logs')
+    .select('*')
+    .order('inicio', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) return null
+  if (!data) return null
+  return {
+    ultima_sync: data.inicio,
+    status: data.status,
+    novos: data.novos ?? 0,
+    atualizados: data.atualizados ?? 0,
+  }
+}
+
+// ── Contatos ────────────────────────────────────────────────────────────────
+
+export async function sbFetchContatosPorCliente(clienteId) {
+  const { data, error } = await supabase
+    .from('contatos')
+    .select('*')
+    .eq('cliente_id', clienteId)
+    .order('data_contato', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function sbCreateContato(dados) {
+  const userId = await sessionUserId()
+  if (!userId) throw new Error('Usuário não autenticado')
+
+  const { proximo_contato, ...contatoDados } = dados
+  const payload = { ...contatoDados, usuario_id: userId }
+  const { data, error } = await supabase.from('contatos').insert(payload).select().single()
+  if (error) throw error
+
+  if (proximo_contato && dados.card_id) {
+    await supabase
+      .from('pipeline_cards')
+      .update({ proximo_contato })
+      .eq('id', dados.card_id)
+  }
+
+  return data
+}
+
+// ── Qualificação ────────────────────────────────────────────────────────────
+
+export async function sbFetchQualificacaoPendentes() {
+  const { data, error } = await supabase
+    .from('qualificacoes')
+    .select('*, pipeline_cards(*)')
+    .is('aprovado', null)
+  if (error) throw error
+  return data ?? []
+}
+
+export async function sbEnrichQualificacaoPendentes(items) {
+  if (!items.length) return []
+
+  const clientes = await sbFetchClientes()
+  const map = Object.fromEntries(clientes.map((c) => [c.id, c]))
+
+  return items.map((q) => {
+    const card = q.pipeline_cards ?? null
+    return {
+      ...q,
+      card,
+      cliente: card?.cliente_id ? map[card.cliente_id] ?? null : null,
+    }
+  })
+}
+
+export async function sbRegistrarQualificacao(cardId, dados) {
+  const userId = await sessionUserId()
+  if (!userId) throw new Error('Usuário não autenticado')
+
+  const { data, error } = await supabase
+    .from('qualificacoes')
+    .insert({ ...dados, card_id: cardId, avaliador_id: userId })
+    .select()
+    .single()
+  if (error) throw error
+
+  if (data.score_total != null) {
+    await supabase.from('pipeline_cards').update({ score: data.score_total }).eq('id', cardId)
+  }
+  return data
+}
+
+export async function sbAprovarQualificacao(cardId, aprovado, observacoes) {
+  const { data: pendentes, error: findErr } = await supabase
+    .from('qualificacoes')
+    .select('id')
+    .eq('card_id', cardId)
+    .is('aprovado', null)
+    .limit(1)
+    .maybeSingle()
+  if (findErr) throw findErr
+  if (!pendentes) throw new Error('Qualificação pendente não encontrada')
+
+  const { data, error } = await supabase
+    .from('qualificacoes')
+    .update({ aprovado, observacoes })
+    .eq('id', pendentes.id)
+    .select()
+    .single()
+  if (error) throw error
+
+  if (aprovado) {
+    await supabase.from('pipeline_cards').update({ etapa: 'lead_qualificado' }).eq('id', cardId)
+  }
+  return data
+}
+
+// ── Usuários ────────────────────────────────────────────────────────────────
+
+export async function sbFetchUsuarios() {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('id, nome, email, perfil, ativo, created_at')
+    .order('nome')
+  if (error) throw error
+  return data ?? []
+}

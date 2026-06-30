@@ -1,0 +1,52 @@
+[
+  {
+    "file": "batch_002.sql",
+    "bytes": 19143,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_003.sql",
+    "bytes": 19648,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_004.sql",
+    "bytes": 19394,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_005.sql",
+    "bytes": 19775,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_006.sql",
+    "bytes": 19675,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_007.sql",
+    "bytes": 19713,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_008.sql",
+    "bytes": 19980,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_009.sql",
+    "bytes": 19816,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_010.sql",
+    "bytes": 19831,
+    "status": "PENDING_MCP"
+  },
+  {
+    "file": "batch_011.sql",
+    "bytes": 19759,
+    "status": "PENDING_MCP"
+  }
+]

@@ -1,0 +1,19 @@
+INSERT INTO public.clientes (
+  sisplan_id, razao_social, nome_fantasia, cnpj, telefone, email,
+  endereco, cidade, estado, segmento, ultima_compra, valor_historico,
+  qtd_compras, status, sincronizado_em
+) VALUES
+  ('11939', 'WILMAIR R DE FREITAS REPRESENTACAO', 'WILMAIR R DE FREITAS REPRESENTACAO', '13.058.555/0001-36', '(62) 3091 3235', 'wilmairfreitas@gmail.com', NULL, 'SANTO ANTONIO DE GOIAS', 'GOIAS', NULL, '2025-11-11', 310.496, 4, 'inativo', now()),
+  ('09684', 'XT REPRESENTACOES LTDA ME', 'XT REPRESENTACOES LTDA ME', '26.745.377/0001-63', '(34) 998211929', 'sergio.xt58@hotmail.com', NULL, 'UBERLANDIA', 'MINAS GERAIS', NULL, '2025-11-10', 286.08, 6, 'inativo', now()),
+  ('21850', 'MARIO AUGUSTO DUARTE 04203319803', 'MARIO AUGUSTO DUARTE 04203319803', '23.770.095/0001-28', '(32) 3728-4462', 'SOCIETARIO@HPCONT.COM.BR', NULL, 'JUIZ DE FORA', 'MINAS GERAIS', NULL, '2025-10-14', 263.68, 1, 'inativo', now()),
+  ('21621', 'TONI FRANCISCO CUZIM', 'TONI FRANCISCO CUZIM', '32.074.329/0001-93', '(16) 3382-5524', 'tonirepresentante@outlook.com', NULL, 'MATAO', 'SAO PAULO', NULL, '2025-11-12', 191.35999999999999, 3, 'inativo', now()),
+  ('21626', 'EDESTRO REPRESENTACOES LTDA', 'EDESTRO REPRESENTACOES LTDA', '47.981.271/0001-39', '(48) 9672-1229', 'ELIASDESTRO@GMAIL.COM', NULL, 'SAO JOSE', 'SANTA CATARINA', NULL, '2025-11-12', 169.664, 3, 'inativo', now()),
+  ('02540', 'MERID REPRESENTACOES LTDA', 'MERID REPRESENTACOES LTDA', '11.719.606/0001-06', '(85) 9983-5663', 'adrianagomesrep@gmail.com', NULL, 'FORTALEZA', 'CEARA', NULL, '2025-11-11', 126.52799999999999, 3, 'inativo', now()),
+  ('09661', 'MICROBUSINESS REPRESENTACOES LTDA', 'MICROBUSINESS REPRESENTACOES LTDA', '07.708.610/0001-93', '(32) 3234 7994', 'ludtkebr@gmail.com', NULL, 'JUIZ DE FORA', 'MINAS GERAIS', NULL, '2025-11-11', 73.6, 4, 'inativo', now())
+ON CONFLICT (sisplan_id) DO UPDATE SET
+  razao_social = EXCLUDED.razao_social,
+  nome_fantasia = EXCLUDED.nome_fantasia,
+  ultima_compra = EXCLUDED.ultima_compra,
+  valor_historico = EXCLUDED.valor_historico,
+  qtd_compras = EXCLUDED.qtd_compras,
+  sincronizado_em = EXCLUDED.sincronizado_em;

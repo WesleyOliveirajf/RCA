@@ -1,0 +1,1 @@
+{"query": "INSERT INTO public.sync_logs (inicio, fim, status, novos, atualizados)\nVALUES (now(), now(), 'sucesso', 964, 0);"}
