@@ -21,6 +21,16 @@ from rca_api.schemas.pipeline import (
 
 NUTRICAO_MOTIVOS = {"timing_ruim", "decisor_errado"}
 
+ETAPA_PARA_STATUS = {
+    "inativos": "inativo",
+    "primeiro_contato": "em_contato",
+    "lead_qualificado": "qualificado",
+    "negociacao": "negociando",
+    "pos_venda": "reativado",
+    "banco_potenciais": "descartado",
+    "desqualificados": "desqualificado",
+}
+
 
 class PipelineService:
     def __init__(self, repo: PipelineRepository):
@@ -77,6 +87,11 @@ class PipelineService:
             update["notas"] = dados.notas
 
         atualizado = self._repo.atualizar(card_id, update)
+
+        novo_status = ETAPA_PARA_STATUS.get(dados.etapa_destino)
+        if novo_status and card.get("cliente_id"):
+            self._repo.atualizar_cliente(card["cliente_id"], {"status": novo_status})
+
         self._repo.registrar_atividade(
             card_id,
             user.id,

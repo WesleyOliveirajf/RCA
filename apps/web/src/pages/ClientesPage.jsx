@@ -98,7 +98,7 @@ export function ClientesPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Clientes</h1>
           <p className="text-sm text-slate-500">
-            {loading ? 'Carregando...' : `${clientes.length} clientes importados do SISPLAN`}
+            {loading ? 'Carregando...' : `${clientes.length} clientes cadastrados`}
           </p>
         </div>
         <div className="flex items-center gap-2">

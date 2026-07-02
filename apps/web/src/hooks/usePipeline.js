@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase, isDemoMode } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { podeMoverCard, podeLiberar, precisaLiberacaoParaMover, MSG_LEAD_NAO_LIBERADO } from '@/lib/utils'
+import { podeMoverCard, podeLiberar, precisaLiberacaoParaMover, MSG_LEAD_NAO_LIBERADO, statusFromEtapa } from '@/lib/utils'
 import {
   sbFetchPipelineCards,
   sbEnrichCardsWithClientes,
@@ -96,9 +96,18 @@ export function usePipeline() {
     const snapshot = [...cards]
 
     setCards((prev) =>
-      prev.map((card) =>
-        card.id === cardId ? { ...card, etapa: etapaDestino, posicao: posicao ?? card.posicao } : card
-      )
+      prev.map((card) => {
+        if (card.id !== cardId) return card
+        const novoStatus = statusFromEtapa(etapaDestino)
+        return {
+          ...card,
+          etapa: etapaDestino,
+          posicao: posicao ?? card.posicao,
+          cliente: card.cliente && novoStatus
+            ? { ...card.cliente, status: novoStatus }
+            : card.cliente,
+        }
+      })
     )
 
     try {

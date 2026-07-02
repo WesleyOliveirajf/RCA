@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { ETAPAS } from './utils'
+import { ETAPAS, statusFromEtapa } from './utils'
 
 async function sessionUserId() {
   const { data: { session } } = await supabase.auth.getSession()
@@ -94,6 +94,18 @@ export async function sbMoverCard(cardId, etapaDestino, posicao, etapaAnterior) 
       console.warn('Atividade não registrada:', atividadeErr.message)
     }
   }
+
+  const novoStatus = statusFromEtapa(etapaDestino)
+  if (data?.cliente_id && novoStatus) {
+    const { error: statusErr } = await supabase
+      .from('clientes')
+      .update({ status: novoStatus })
+      .eq('id', data.cliente_id)
+    if (statusErr) {
+      console.warn('Status do cliente não sincronizado:', statusErr.message)
+    }
+  }
+
   return data
 }
 

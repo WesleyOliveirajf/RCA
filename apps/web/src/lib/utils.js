@@ -17,6 +17,21 @@ export const ETAPAS = [
   { id: 'desqualificados', label: 'Desqualificados', cor: 'red' },
 ]
 
+/** Espelha pipeline_cards.etapa em clientes.status (listagem de Clientes). */
+export const ETAPA_PARA_STATUS = {
+  inativos: 'inativo',
+  primeiro_contato: 'em_contato',
+  lead_qualificado: 'qualificado',
+  negociacao: 'negociando',
+  pos_venda: 'reativado',
+  banco_potenciais: 'descartado',
+  desqualificados: 'desqualificado',
+}
+
+export function statusFromEtapa(etapa) {
+  return ETAPA_PARA_STATUS[etapa] ?? null
+}
+
 /** Funil compartilhado: qualquer usuário autenticado pode ver e mover cards nestas etapas */
 export const ETAPAS_FUNIL_ABERTO = ['inativos', 'primeiro_contato', 'lead_qualificado']
 
