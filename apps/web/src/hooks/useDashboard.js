@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import { withApiFallback } from '@/lib/apiFallback'
 import {
@@ -20,9 +21,9 @@ export function useDashboard() {
   const [error, setError] = useState(null)
   const [usingFallback, setUsingFallback] = useState(false)
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       let fallbackUsed = false
 
       const wrap = async (apiFn, sbFn) => {
@@ -34,8 +35,9 @@ export function useDashboard() {
         }
       }
 
+      // Funil sempre via Supabase (mesma RLS e mesma agregação da pipeline)
       const [funilData, timelineData, contatosData, syncData] = await Promise.all([
-        wrap(() => api.get('/api/dashboard/funil'), sbFetchDashboardFunil),
+        sbFetchDashboardFunil(),
         wrap(() => api.get('/api/dashboard/timeline'), () => sbFetchTimeline()),
         wrap(() => api.get('/api/contatos/pendentes'), sbFetchContatosPendentes),
         withApiFallback(() => api.get('/api/sync/status'), sbFetchSyncStatus),
@@ -50,14 +52,38 @@ export function useDashboard() {
     } catch (err) {
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     fetchAll()
-    const interval = setInterval(fetchAll, POLL_INTERVAL_MS)
-    return () => clearInterval(interval)
+
+    if (isDemoMode) {
+      const interval = setInterval(() => fetchAll({ silent: true }), POLL_INTERVAL_MS)
+      return () => clearInterval(interval)
+    }
+
+    const channel = supabase
+      .channel('dashboard-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pipeline_cards' },
+        () => { fetchAll({ silent: true }) }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'atividades' },
+        () => { fetchAll({ silent: true }) }
+      )
+      .subscribe()
+
+    const interval = setInterval(() => fetchAll({ silent: true }), POLL_INTERVAL_MS)
+
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [fetchAll])
 
   return { funil, timeline, contatosHoje, syncStatus, loading, error, usingFallback, refetch: fetchAll }

@@ -14,6 +14,7 @@ const ETAPA_LABELS = {
   negociacao: 'Negociação',
   pos_venda: 'Pós-venda',
   banco_potenciais: 'Potenciais',
+  desqualificados: 'Desqualificados',
 }
 
 function formatDescricao(atividade) {
@@ -31,6 +32,12 @@ function formatDescricao(atividade) {
 
   if (acao === 'liberar_lead') {
     return 'Lead liberado na etapa Lead Qualificado'
+  }
+
+  if (acao === 'qualificacao' && detalhes?.score_total != null) {
+    const de = ETAPA_LABELS[detalhes.de] ?? detalhes.de
+    const para = ETAPA_LABELS[detalhes.para] ?? detalhes.para
+    return `Lead qualificado (score ${detalhes.score_total}) — ${de} → ${para}`
   }
 
   return acao?.replace(/_/g, ' ') ?? 'Atividade no sistema'

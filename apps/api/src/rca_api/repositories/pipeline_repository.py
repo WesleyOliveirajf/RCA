@@ -36,6 +36,27 @@ class PipelineRepository:
         result = self._db.table("pipeline_cards").select("*").eq("id", card_id).maybe_single().execute()
         return result.data
 
+    def listar_por_cliente(self, cliente_id: str) -> list[dict]:
+        result = (
+            self._db.table("pipeline_cards")
+            .select("*")
+            .eq("cliente_id", cliente_id)
+            .execute()
+        )
+        return result.data or []
+
+    def listar_cliente_ids_acessiveis(self, user_id: str) -> list[str]:
+        result = (
+            self._db.table("pipeline_cards")
+            .select("cliente_id")
+            .or_(
+                "etapa.in.(inativos,primeiro_contato,lead_qualificado),"
+                f"responsavel_id.eq.{user_id}"
+            )
+            .execute()
+        )
+        return list({row["cliente_id"] for row in (result.data or []) if row.get("cliente_id")})
+
     def buscar_por_cliente_id(self, cliente_id: str) -> dict | None:
         result = (
             self._db.table("pipeline_cards")

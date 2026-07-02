@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from rca_api.dependencies import CurrentUserDep, get_supabase_client
+from rca_api.dependencies import CurrentUserDep, SupervisorDep, get_supabase_client
 from rca_api.repositories.pipeline_repository import PipelineRepository
 from rca_api.schemas.pipeline import (
     DesqualificarLeadRequest,
@@ -89,7 +89,7 @@ async def desqualificar_lead(
 @router.delete("/cards/{card_id}", status_code=204)
 async def remover_card(
     card_id: str,
-    user: CurrentUserDep,
+    user: SupervisorDep,
     service: PipelineService = Depends(get_service),
 ):
     service.remover(card_id, user)

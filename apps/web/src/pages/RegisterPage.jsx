@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Eye, EyeOff, Zap, ArrowLeft, Loader2 } from 'lucide-react'
 
 export function RegisterPage() {
   const { signUp } = useAuth()
-  const navigate = useNavigate()
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

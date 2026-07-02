@@ -21,28 +21,28 @@ def get_service() -> ContatoService:
 
 @router.get("/pendentes", response_model=list[ContatoPendenteResponse])
 async def contatos_pendentes(
-    _user: CurrentUserDep,
+    user: CurrentUserDep,
     service: ContatoService = Depends(get_service),
 ):
-    return service.pendentes_hoje()
+    return service.pendentes_hoje(user)
 
 
 @router.get("/{cliente_id}", response_model=list[ContatoResponse])
 async def listar_contatos(
     cliente_id: str,
-    _user: CurrentUserDep,
+    user: CurrentUserDep,
     service: ContatoService = Depends(get_service),
 ):
-    return service.listar_por_cliente(cliente_id)
+    return service.listar_por_cliente(cliente_id, user)
 
 
 @router.get("/registro/{contato_id}", response_model=ContatoResponse)
 async def obter_contato(
     contato_id: str,
-    _user: CurrentUserDep,
+    user: CurrentUserDep,
     service: ContatoService = Depends(get_service),
 ):
-    return service.obter(contato_id)
+    return service.obter(contato_id, user)
 
 
 @router.post("", response_model=ContatoResponse, status_code=201)
@@ -58,7 +58,7 @@ async def registrar_contato(
 async def atualizar_contato(
     contato_id: str,
     dados: ContatoUpdate,
-    _user: CurrentUserDep,
+    user: CurrentUserDep,
     service: ContatoService = Depends(get_service),
 ):
-    return service.atualizar(contato_id, dados)
+    return service.atualizar(contato_id, dados, user)

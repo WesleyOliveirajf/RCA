@@ -1,38 +1,61 @@
 import { useEffect, useState, useCallback } from 'react'
+import { supabase, isDemoMode } from '@/lib/supabase'
 import { api } from '@/lib/api'
 import {
-  sbFetchQualificacoes,
-  sbEnrichQualificacoes,
+  sbFetchQualificacaoPendentes,
+  sbFetchQualificacaoStats,
   sbRegistrarQualificacao,
   sbAprovarQualificacao,
 } from '@/lib/supabaseData'
 
 export function useQualificacao() {
-  const [qualificacoes, setQualificacoes] = useState([])
+  const [pendentes, setPendentes] = useState([])
+  const [stats, setStats] = useState({
+    totalPendentes: 0,
+    totalAprovados: 0,
+    totalQualificacoes: 0,
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchQualificacoes = useCallback(async () => {
+  const fetchAll = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true)
-      let raw
-      try {
-        raw = await api.get('/api/qualificacao')
-      } catch {
-        raw = await sbFetchQualificacoes()
-      }
-      setQualificacoes(await sbEnrichQualificacoes(raw))
+      if (!silent) setLoading(true)
+      const [pendentesData, statsData] = await Promise.all([
+        sbFetchQualificacaoPendentes(),
+        sbFetchQualificacaoStats(),
+      ])
+      setPendentes(pendentesData)
+      setStats(statsData)
       setError(null)
     } catch (err) {
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchQualificacoes()
-  }, [fetchQualificacoes])
+    fetchAll()
+
+    if (isDemoMode) return undefined
+
+    const channel = supabase
+      .channel('qualificacao-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pipeline_cards' },
+        () => { fetchAll({ silent: true }) }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'qualificacoes' },
+        () => { fetchAll({ silent: true }) }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchAll])
 
   async function registrar(cardId, dados) {
     let result
@@ -41,7 +64,7 @@ export function useQualificacao() {
     } catch {
       result = await sbRegistrarQualificacao(cardId, dados)
     }
-    await fetchQualificacoes()
+    await fetchAll({ silent: true })
     return result
   }
 
@@ -52,24 +75,19 @@ export function useQualificacao() {
     } catch {
       result = await sbAprovarQualificacao(cardId, aprovado, observacoes)
     }
-    await fetchQualificacoes()
+    await fetchAll({ silent: true })
     return result
   }
 
-  const pendentes = qualificacoes.filter((q) => q.aprovado === null)
-  const aprovados = qualificacoes.filter((q) => q.aprovado === true)
-
   return {
-    qualificacoes,
     pendentes,
-    totalPendentes: pendentes.length,
-    aprovados,
-    totalAprovados: aprovados.length,
-    totalQualificacoes: qualificacoes.length,
+    totalPendentes: stats.totalPendentes,
+    totalAprovados: stats.totalAprovados,
+    totalQualificacoes: stats.totalQualificacoes,
     loading,
     error,
     registrar,
     aprovar,
-    refetch: fetchQualificacoes,
+    refetch: fetchAll,
   }
 }

@@ -7,8 +7,10 @@ class ClienteRepository:
     def __init__(self, supabase: Client):
         self._db = supabase
 
-    def listar(self, filtros: ClienteFilter) -> list[dict]:
+    def listar(self, filtros: ClienteFilter, cliente_ids: list[str] | None = None) -> list[dict]:
         query = self._db.table("clientes").select("*")
+        if cliente_ids is not None:
+            query = query.in_("id", cliente_ids)
         if filtros.status:
             query = query.eq("status", filtros.status)
         if filtros.cidade:

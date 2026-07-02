@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { Eye, EyeOff, Zap, ArrowRight, Loader2, User } from 'lucide-react'
+import { Eye, EyeOff, Zap, ArrowRight, Loader2 } from 'lucide-react'
 
 export function LoginPage() {
   const { signIn } = useAuth()

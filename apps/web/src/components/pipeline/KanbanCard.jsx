@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Lock,
 } from 'lucide-react'
-import { formatCurrency, PRIORIDADE_CORES } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 
 const PRIORIDADE_STYLES = {
   baixa: {

@@ -313,6 +313,9 @@ export async function sbCreateContato(dados) {
 
 // ── Qualificação ────────────────────────────────────────────────────────────
 
+const ETAPA_QUALIFICACAO = 'primeiro_contato'
+const ETAPA_APOS_QUALIFICACAO = 'lead_qualificado'
+
 export async function sbFetchQualificacoes() {
   const { data, error } = await supabase
     .from('qualificacoes')
@@ -322,9 +325,64 @@ export async function sbFetchQualificacoes() {
   return data ?? []
 }
 
+/** Leads pendentes = cards na mesma etapa da coluna "1º Contato" do Kanban. */
 export async function sbFetchQualificacaoPendentes() {
-  const qualificacoes = await sbFetchQualificacoes()
-  return qualificacoes.filter((q) => q.aprovado === null)
+  const { data: cards, error: cardsErr } = await supabase
+    .from('pipeline_cards')
+    .select('*')
+    .eq('etapa', ETAPA_QUALIFICACAO)
+    .order('updated_at', { ascending: false })
+  if (cardsErr) throw cardsErr
+
+  const enriched = await sbEnrichCardsWithClientes(cards ?? [])
+  if (!enriched.length) return []
+
+  const cardIds = enriched.map((c) => c.id)
+  const { data: quals, error: qualsErr } = await supabase
+    .from('qualificacoes')
+    .select('*')
+    .in('card_id', cardIds)
+    .order('created_at', { ascending: false })
+  if (qualsErr) throw qualsErr
+
+  const latestByCard = {}
+  for (const q of quals ?? []) {
+    if (!latestByCard[q.card_id]) latestByCard[q.card_id] = q
+  }
+
+  return enriched.map((card) => {
+    const qualificacao = latestByCard[card.id] ?? null
+    return {
+      card_id: card.id,
+      card,
+      cliente: card.cliente,
+      qualificacao,
+      score_total: qualificacao?.score_total ?? card.score ?? 0,
+      observacoes: qualificacao?.observacoes ?? null,
+      aprovado: qualificacao?.aprovado ?? null,
+      created_at: qualificacao?.created_at ?? card.updated_at ?? card.created_at,
+    }
+  })
+}
+
+export async function sbFetchQualificacaoStats() {
+  const [{ data: cards, error: cardsErr }, { data: quals, error: qualsErr }] = await Promise.all([
+    supabase.from('pipeline_cards').select('etapa'),
+    supabase.from('qualificacoes').select('id'),
+  ])
+  if (cardsErr) throw cardsErr
+  if (qualsErr) throw qualsErr
+
+  const etapaCounts = {}
+  for (const c of cards ?? []) {
+    etapaCounts[c.etapa] = (etapaCounts[c.etapa] ?? 0) + 1
+  }
+
+  return {
+    totalPendentes: etapaCounts[ETAPA_QUALIFICACAO] ?? 0,
+    totalAprovados: etapaCounts[ETAPA_APOS_QUALIFICACAO] ?? 0,
+    totalQualificacoes: (quals ?? []).length,
+  }
 }
 
 export async function sbEnrichQualificacoes(items) {
@@ -351,14 +409,36 @@ export async function sbRegistrarQualificacao(cardId, dados) {
 
   const { data, error } = await supabase
     .from('qualificacoes')
-    .insert({ ...dados, card_id: cardId, avaliador_id: userId })
+    .insert({
+      ...dados,
+      card_id: cardId,
+      avaliador_id: userId,
+      aprovado: true,
+    })
     .select()
     .single()
   if (error) throw error
 
-  if (data.score_total != null) {
-    await supabase.from('pipeline_cards').update({ score: data.score_total }).eq('id', cardId)
-  }
+  const { error: cardErr } = await supabase
+    .from('pipeline_cards')
+    .update({
+      score: data.score_total,
+      etapa: ETAPA_APOS_QUALIFICACAO,
+    })
+    .eq('id', cardId)
+  if (cardErr) throw cardErr
+
+  await supabase.from('atividades').insert({
+    card_id: cardId,
+    usuario_id: userId,
+    acao: 'qualificacao',
+    detalhes: {
+      score_total: data.score_total,
+      de: ETAPA_QUALIFICACAO,
+      para: ETAPA_APOS_QUALIFICACAO,
+    },
+  })
+
   return data
 }
 

@@ -22,12 +22,12 @@ export function QualificacaoPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
 
-  async function handleSubmit(cardId, qualId, data) {
+  async function handleSubmit(cardId, data) {
     try {
       setSubmitting(true)
       setSubmitError(null)
       await registrar(cardId, data)
-      setSalvos((prev) => new Set([...prev, qualId]))
+      setSalvos((prev) => new Set([...prev, cardId]))
       setExpandido(null)
     } catch (err) {
       setSubmitError(err.message)
@@ -56,7 +56,9 @@ export function QualificacaoPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Qualificação de Leads</h1>
-          <p className="text-sm text-slate-500">Avalie e aprove leads para avançar no pipeline</p>
+          <p className="text-sm text-slate-500">
+            Leads na coluna <strong>1º Contato</strong> do pipeline — ao avaliar, avançam para Lead Qualificado
+          </p>
         </div>
         <button
           onClick={refetch}
@@ -83,7 +85,7 @@ export function QualificacaoPage() {
 
       <div className="grid grid-cols-3 gap-4">
         <StatCard icon={Clock} label="Pendentes" value={totalPendentes} color="text-amber-600 bg-amber-50" />
-        <StatCard icon={CheckCircle} label="Aprovados" value={totalAprovados} color="text-green-600 bg-green-50" />
+        <StatCard icon={CheckCircle} label="Qualificados" value={totalAprovados} color="text-green-600 bg-green-50" />
         <StatCard icon={Star} label="Total" value={totalQualificacoes} color="text-indigo-600 bg-indigo-50" />
       </div>
 
@@ -102,10 +104,10 @@ export function QualificacaoPage() {
           <div className="space-y-3">
             {pendentes.map((q) => {
               const nome = q.cliente?.nome_fantasia ?? q.cliente?.razao_social ?? `Card ${q.card_id}`
-              const isSalvo = salvos.has(q.id)
-              const isOpen  = expandido === q.id
+              const isSalvo = salvos.has(q.card_id)
+              const isOpen  = expandido === q.card_id
               return (
-                <div key={q.id} className="rounded-rca-lg border border-slate-100 bg-white shadow-soft-sm overflow-hidden">
+                <div key={q.card_id} className="rounded-rca-lg border border-slate-100 bg-white shadow-soft-sm overflow-hidden">
                   <div className="flex items-center justify-between gap-4 p-4">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-sm font-bold ${getScoreColor(q.score_total)}`}>
@@ -128,7 +130,7 @@ export function QualificacaoPage() {
                         <Badge variant="success">Salvo</Badge>
                       ) : (
                         <button
-                          onClick={() => setExpandido(isOpen ? null : q.id)}
+                          onClick={() => setExpandido(isOpen ? null : q.card_id)}
                           className="rounded-lg bg-rca-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-rca-primary-dark transition-colors"
                         >
                           {isOpen ? 'Fechar' : 'Avaliar'}
@@ -139,7 +141,7 @@ export function QualificacaoPage() {
 
                   {q.observacoes && !isOpen && (
                     <div className="border-t border-slate-50 px-4 pb-3">
-                      <p className="text-xs text-slate-500 italic">"{q.observacoes}"</p>
+                      <p className="text-xs text-slate-500 italic">&ldquo;{q.observacoes}&rdquo;</p>
                     </div>
                   )}
 
@@ -147,7 +149,7 @@ export function QualificacaoPage() {
                     <div className="border-t border-slate-100 p-4">
                       <ScoreForm
                         loading={submitting}
-                        onSubmit={(data) => handleSubmit(q.card_id, q.id, data)}
+                        onSubmit={(data) => handleSubmit(q.card_id, data)}
                       />
                     </div>
                   )}

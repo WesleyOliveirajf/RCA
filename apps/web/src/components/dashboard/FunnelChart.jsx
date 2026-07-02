@@ -10,6 +10,7 @@ const ETAPA_CORES = {
   negociacao:       '#f59e0b',
   pos_venda:        '#22c55e',
   banco_potenciais: '#94a3b8',
+  desqualificados:  '#ef4444',
 }
 
 const ETAPA_LABELS = {
@@ -19,6 +20,7 @@ const ETAPA_LABELS = {
   negociacao:       'Negociação',
   pos_venda:        'Pós-venda',
   banco_potenciais: 'Potenciais',
+  desqualificados:  'Desqualificados',
 }
 
 function CustomTooltip({ active, payload }) {

@@ -2,6 +2,8 @@ from datetime import date, datetime, timedelta, timezone
 
 from rca_api.core.exceptions import AppError, ForbiddenError, NotFoundError
 from rca_api.core.security import (
+    pode_acessar_cliente,
+    pode_excluir_card,
     pode_interagir_com_card,
     pode_mover_para_etapa,
     pode_ver_card,
@@ -266,5 +268,12 @@ class PipelineService:
         }
 
     def remover(self, card_id: str, user: CurrentUser) -> None:
-        self.obter(card_id, user)
+        card = self.obter(card_id, user)
+        if not pode_excluir_card(
+            user.perfil,
+            card.get("responsavel_id"),
+            user.id,
+            card.get("etapa"),
+        ):
+            raise ForbiddenError("Somente gestores podem excluir cards")
         self._repo.remover(card_id)

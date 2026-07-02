@@ -4,7 +4,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  Calendar,
   MessageSquare,
   TrendingUp,
   Clock,

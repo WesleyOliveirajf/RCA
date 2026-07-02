@@ -10,12 +10,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
 import { KanbanColumn } from './KanbanColumn'
-import { KanbanCard } from './KanbanCard'
 import { CardDetail } from './CardDetail'
 import { usePipeline } from '@/hooks/usePipeline'
 import { useSync } from '@/hooks/useSync'

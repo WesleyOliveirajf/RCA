@@ -40,3 +40,4 @@ supabase/.temp/
 *.pem
 *.key
 credentials.json
+.vercel

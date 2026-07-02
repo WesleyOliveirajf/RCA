@@ -1,6 +1,4 @@
-import logging
 from typing import Literal
-
 Perfil = Literal["vendedor", "supervisor", "admin", "superadmin"]
 
 ETAPAS_FUNIL_ABERTO = frozenset({"inativos", "primeiro_contato", "lead_qualificado"})
@@ -17,6 +15,10 @@ def perfil_tem_acesso(perfil_usuario: Perfil, perfil_minimo: Perfil) -> bool:
     return HIERARQUIA.get(perfil_usuario, 0) >= HIERARQUIA.get(perfil_minimo, 99)
 
 
+def _eh_gestor(perfil: Perfil) -> bool:
+    return perfil in ("supervisor", "admin", "superadmin")
+
+
 def pode_ver_card(
     perfil: Perfil,
     responsavel_id: str | None,
@@ -25,9 +27,35 @@ def pode_ver_card(
 ) -> bool:
     if etapa and etapa in ETAPAS_FUNIL_ABERTO:
         return True
-    if perfil in ("supervisor", "admin", "superadmin"):
+    if _eh_gestor(perfil):
         return True
     return responsavel_id == user_id
+
+
+def pode_excluir_card(
+    perfil: Perfil,
+    responsavel_id: str | None,
+    user_id: str,
+    etapa: str | None = None,
+) -> bool:
+    if not _eh_gestor(perfil):
+        return False
+    if etapa and etapa in ETAPAS_FUNIL_ABERTO and responsavel_id not in (None, user_id):
+        return perfil in ("admin", "superadmin")
+    return True
+
+
+def pode_acessar_cliente(
+    perfil: Perfil,
+    user_id: str,
+    cards: list[dict],
+) -> bool:
+    if _eh_gestor(perfil):
+        return True
+    return any(
+        pode_ver_card(perfil, card.get("responsavel_id"), user_id, card.get("etapa"))
+        for card in cards
+    )
 
 
 def pode_mover_para_etapa(
@@ -38,7 +66,7 @@ def pode_mover_para_etapa(
 ) -> bool:
     if etapa_destino in ETAPAS_FUNIL_ABERTO:
         return True
-    if perfil in ("supervisor", "admin", "superadmin"):
+    if _eh_gestor(perfil):
         return True
     return responsavel_id == user_id
 
@@ -51,7 +79,7 @@ def pode_interagir_com_card(
 ) -> bool:
     if etapa_atual and etapa_atual in ETAPAS_FUNIL_ABERTO:
         return True
-    if perfil in ("supervisor", "admin", "superadmin"):
+    if _eh_gestor(perfil):
         return True
     return responsavel_id == user_id
 

@@ -17,6 +17,60 @@ class TestPrecisaLiberacaoParaMover:
         assert precisa_liberacao_para_mover("negociacao", "pos_venda", False) is False
 
 
+class TestPodeExcluirCard:
+    def test_vendedor_nunca_pode_excluir(self):
+        from rca_api.core.security import pode_excluir_card
+
+        assert (
+            pode_excluir_card(
+                perfil="vendedor",
+                responsavel_id="user-1",
+                user_id="user-1",
+                etapa="negociacao",
+            )
+            is False
+        )
+
+    def test_supervisor_pode_excluir_card_proprio_fechado(self):
+        from rca_api.core.security import pode_excluir_card
+
+        assert (
+            pode_excluir_card(
+                perfil="supervisor",
+                responsavel_id="user-1",
+                user_id="user-2",
+                etapa="negociacao",
+            )
+            is True
+        )
+
+    def test_supervisor_nao_exclui_funil_aberto_de_outro(self):
+        from rca_api.core.security import pode_excluir_card
+
+        assert (
+            pode_excluir_card(
+                perfil="supervisor",
+                responsavel_id="user-1",
+                user_id="user-2",
+                etapa="inativos",
+            )
+            is False
+        )
+
+    def test_admin_pode_excluir_funil_aberto_de_outro(self):
+        from rca_api.core.security import pode_excluir_card
+
+        assert (
+            pode_excluir_card(
+                perfil="admin",
+                responsavel_id="user-1",
+                user_id="user-2",
+                etapa="inativos",
+            )
+            is True
+        )
+
+
 class TestPodeMoverCard:
     def test_vendedor_bloqueado_sem_liberacao(self):
         assert (

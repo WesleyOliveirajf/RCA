@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
-import { Users, Plus, Loader2, AlertCircle, X, RefreshCw, Trash2 } from 'lucide-react'
+import { Plus, Loader2, AlertCircle, X, RefreshCw, Trash2 } from 'lucide-react'
 
 const PERFIL_INICIAL = {
   username: '',
@@ -92,28 +92,13 @@ export function UsuariosPage() {
           if (updErr) throw updErr
         }
       } else {
-        try {
-          await api.post('/api/usuarios', {
-            username: form.username.trim(),
-            nome: form.nome.trim(),
-            password: form.password,
-            perfil: form.perfil,
-          })
-        } catch {
-          const email = `${form.username.trim().toLowerCase()}@rca.local`
-          const { error: signupErr } = await supabase.auth.signUp({
-            email,
-            password: form.password,
-            options: { data: { nome: form.nome.trim(), perfil: form.perfil } },
-          })
-          if (!signupErr) {
-            await supabase
-              .from('usuarios')
-              .update({ username: form.username.trim() })
-              .eq('email', email)
-          }
-          if (signupErr) throw signupErr
-        }
+        const { error: rpcErr } = await supabase.rpc('fn_admin_create_user', {
+          p_username: form.username.trim(),
+          p_password: form.password,
+          p_nome: form.nome.trim(),
+          p_perfil: form.perfil,
+        })
+        if (rpcErr) throw new Error(rpcErr.message)
       }
       setForm(PERFIL_INICIAL)
       setModalAberto(false)

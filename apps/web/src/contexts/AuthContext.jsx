@@ -57,10 +57,24 @@ export function AuthProvider({ children }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
     } catch (err) {
-      if (err?.message === 'Failed to fetch' || err?.name === 'AuthRetryableFetchError') {
+      if (err?.message === 'Failed to fetch') {
         throw new Error(
           'Não foi possível conectar ao Supabase. Verifique internet, firewall ou VPN corporativa.'
         )
+      }
+      if (err?.name === 'AuthRetryableFetchError') {
+        const serverMsg = err?.message || ''
+        if (serverMsg.includes('Database error') || serverMsg.includes('unexpected_failure')) {
+          throw new Error(
+            'Erro interno no servidor de autenticação. Tente novamente em alguns instantes.'
+          )
+        }
+        throw new Error(
+          'Não foi possível conectar ao Supabase. Verifique internet, firewall ou VPN corporativa.'
+        )
+      }
+      if (err?.message === 'Invalid login credentials') {
+        throw new Error('Usuário ou senha incorretos.')
       }
       throw err
     }
