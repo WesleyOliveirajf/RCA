@@ -76,8 +76,10 @@ export function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="absolute bottom-6 text-xs text-indigo-400/40">
+        <p className="absolute bottom-6 text-center text-xs text-indigo-400/40">
           © 2026 RCA — Todos os direitos reservados
+          <br />
+          Criado por Wesley Oliveira
         </p>
       </div>
 

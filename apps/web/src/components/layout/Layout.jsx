@@ -52,6 +52,10 @@ export function Layout() {
             <Outlet />
           </div>
         </main>
+
+        <footer className="shrink-0 border-t border-slate-100 px-4 py-3 text-center text-xs text-slate-400 sm:px-6 lg:px-8">
+          © 2026 RCA — Todos os direitos reservados · Criado por Wesley Oliveira
+        </footer>
       </div>
     </div>
   )
