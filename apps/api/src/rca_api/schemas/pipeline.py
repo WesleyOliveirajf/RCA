@@ -30,6 +30,10 @@ class PipelineCardResponse(BaseModel):
     liberado: bool = False
     liberado_por: str | None = None
     liberado_em: datetime | None = None
+    tem_interesse: bool | None = None
+    catalogo_enviado: bool | None = None
+    atualizacao_cadastral: bool | None = None
+    tipo_contato_cliente: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -45,6 +49,10 @@ class PipelineCardUpdate(BaseModel):
     proximo_contato: date | None = None
     valor_proposta: Decimal | None = None
     responsavel_id: str | None = None
+    tem_interesse: bool | None = None
+    catalogo_enviado: bool | None = None
+    atualizacao_cadastral: bool | None = None
+    tipo_contato_cliente: str | None = None
 
 
 class MoverCardRequest(BaseModel):

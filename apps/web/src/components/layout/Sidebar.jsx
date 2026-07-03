@@ -38,10 +38,10 @@ const navItems = [
   },
   {
     to: '/qualificacao',
-    label: 'Qualificação',
+    label: 'Em Análise',
     icon: Star,
     minPerfil: 'supervisor',
-    description: 'Aprovar leads',
+    description: 'Analisar leads',
   },
   {
     to: '/usuarios',

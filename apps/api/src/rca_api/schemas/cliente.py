@@ -13,15 +13,7 @@ StatusCliente = Literal[
     "descartado",
     "desqualificado",
 ]
-EtapaPipeline = Literal[
-    "inativos",
-    "primeiro_contato",
-    "lead_qualificado",
-    "negociacao",
-    "pos_venda",
-    "banco_potenciais",
-    "desqualificados",
-]
+EtapaPipeline = str
 Prioridade = Literal["baixa", "media", "alta", "urgente"]
 
 
@@ -34,6 +26,7 @@ class ClienteBase(BaseModel):
     cidade: str | None = None
     estado: str | None = None
     segmento: str | None = None
+    nome_contato: str | None = None
     tags: list[str] = Field(default_factory=list)
 
 

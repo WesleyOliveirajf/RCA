@@ -24,7 +24,7 @@ class PipelineRepository:
             self._db.table("pipeline_cards")
             .select("*")
             .or_(
-                "etapa.in.(inativos,primeiro_contato,lead_qualificado),"
+                "etapa.in.(inativos,primeiro_contato,em_analise,lead_qualificado),"
                 f"responsavel_id.eq.{responsavel_id}"
             )
             .order("posicao")
@@ -50,7 +50,7 @@ class PipelineRepository:
             self._db.table("pipeline_cards")
             .select("cliente_id")
             .or_(
-                "etapa.in.(inativos,primeiro_contato,lead_qualificado),"
+                "etapa.in.(inativos,primeiro_contato,em_analise,lead_qualificado),"
                 f"responsavel_id.eq.{user_id}"
             )
             .execute()

@@ -4,9 +4,10 @@ from pydantic import BaseModel, Field
 
 
 class AvaliacaoLead(BaseModel):
-    score_interesse: int = Field(ge=1, le=5)
-    score_volume: int = Field(ge=1, le=5)
-    score_prazo: int = Field(ge=1, le=5)
+    aprovado: bool = True
+    score_interesse: int | None = Field(default=None, ge=1, le=5)
+    score_volume: int | None = Field(default=None, ge=1, le=5)
+    score_prazo: int | None = Field(default=None, ge=1, le=5)
     observacoes: str | None = None
 
 
@@ -14,10 +15,10 @@ class QualificacaoResponse(BaseModel):
     id: str
     card_id: str
     avaliador_id: str
-    score_interesse: int
-    score_volume: int
-    score_prazo: int
-    score_total: int
+    score_interesse: int | None = None
+    score_volume: int | None = None
+    score_prazo: int | None = None
+    score_total: int | None = None
     aprovado: bool | None = None
     observacoes: str | None = None
     created_at: datetime

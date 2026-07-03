@@ -50,11 +50,7 @@ CREATE INDEX idx_clientes_cidade ON public.clientes(cidade);
 CREATE TABLE public.pipeline_cards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cliente_id UUID NOT NULL REFERENCES public.clientes(id) ON DELETE CASCADE,
-  etapa TEXT NOT NULL DEFAULT 'inativos'
-    CHECK (etapa IN (
-      'inativos', 'primeiro_contato', 'lead_qualificado',
-      'negociacao', 'pos_venda', 'banco_potenciais'
-    )),
+  etapa TEXT NOT NULL DEFAULT 'inativos',
   responsavel_id UUID REFERENCES public.usuarios(id),
   score INTEGER DEFAULT 0 CHECK (score >= 0 AND score <= 100),
   prioridade TEXT DEFAULT 'media'

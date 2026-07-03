@@ -6,21 +6,21 @@ import { formatCurrency } from '@/lib/utils'
 const ETAPA_CORES = {
   inativos:         '#8b5cf6',
   primeiro_contato: '#3b82f6',
+  em_analise:       '#f97316',
   lead_qualificado: '#14b8a6',
+  nutricao:         '#0ea5e9',
   negociacao:       '#f59e0b',
   pos_venda:        '#22c55e',
-  banco_potenciais: '#94a3b8',
-  desqualificados:  '#ef4444',
 }
 
 const ETAPA_LABELS = {
   inativos:         'Inativos',
   primeiro_contato: '1º Contato',
+  em_analise:       'Em Análise',
   lead_qualificado: 'Qualificado',
+  nutricao:         'Nutrição',
   negociacao:       'Negociação',
   pos_venda:        'Pós-venda',
-  banco_potenciais: 'Potenciais',
-  desqualificados:  'Desqualificados',
 }
 
 function CustomTooltip({ active, payload }) {

@@ -14,8 +14,13 @@ import {
   Lock,
   Loader2,
   Send,
+  CheckCircle2,
+  Building2,
+  UserCheck,
+  FileCheck,
+  Briefcase,
 } from 'lucide-react'
-import { formatCurrency, formatDate, ETAPAS, podeLiberar } from '@/lib/utils'
+import { formatCurrency, formatDate, getPipelineColumns, podeLiberar } from '@/lib/utils'
 import { useContatos } from '@/hooks/useContatos'
 import { useHistoricoCliente } from '@/hooks/useClientes'
 import { useAuth } from '@/contexts/AuthContext'
@@ -109,7 +114,7 @@ const CHECKLIST_CONFIRMADO = {
   timing_mapeado: true,
 }
 
-export function CardDetail({ card, onClose, onLiberar, onDesqualificar, liberando = false, desqualificando = false }) {
+export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUpdate, liberando = false, desqualificando = false }) {
   const [activeTab, setActiveTab] = useState('dados')
   const [contatoForm, setContatoForm] = useState(CONTATO_INICIAL)
   const [salvandoContato, setSalvandoContato] = useState(false)
@@ -117,12 +122,15 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, liberand
   const [showDesqualificacao, setShowDesqualificacao] = useState(false)
   const [desqualificacaoForm, setDesqualificacaoForm] = useState(DESQUALIFICACAO_INICIAL)
   const [erroDesqualificacao, setErroDesqualificacao] = useState(null)
+  const [editandoCliente, setEditandoCliente] = useState(false)
+  const [clienteEdit, setClienteEdit] = useState({})
+  const [salvandoCliente, setSalvandoCliente] = useState(false)
   const { contatos, loading: loadingContatos, registrar } = useContatos(card.cliente_id)
   const { historico, loading: loadingHistorico } = useHistoricoCliente(card.cliente_id)
   const { user, profile } = useAuth()
   const liberadorNome = useLiberadorNome(card.liberado_por, user?.id, profile?.nome)
   const cliente = card.cliente
-  const etapaInfo = ETAPAS.find((e) => e.id === card.etapa)
+  const etapaInfo = getPipelineColumns().find((e) => e.id === card.etapa)
   const showLiberacao = card.etapa === 'lead_qualificado'
   const canRelease = podeLiberar({
     perfil: profile?.perfil,
@@ -189,6 +197,44 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, liberand
       setShowDesqualificacao(false)
     } catch (err) {
       setErroDesqualificacao(err.message ?? 'Não foi possível desqualificar o lead.')
+    }
+  }
+
+  async function updateChecklistField(field, value) {
+    try {
+      await supabase.from('pipeline_cards').update({ [field]: value }).eq('id', card.id)
+    } catch { /* fallback silencioso */ }
+    onCardUpdate?.({ ...card, [field]: value })
+  }
+
+  function openEditCliente() {
+    setClienteEdit({
+      nome_fantasia: cliente?.nome_fantasia || '',
+      nome_contato: cliente?.nome_contato || '',
+      cnpj: cliente?.cnpj || '',
+      telefone: cliente?.telefone || '',
+      email: cliente?.email || '',
+      cidade: cliente?.cidade || '',
+      estado: cliente?.estado || '',
+      segmento: cliente?.segmento || '',
+    })
+    setEditandoCliente(true)
+  }
+
+  async function saveClienteEdit(event) {
+    event.preventDefault()
+    setSalvandoCliente(true)
+    try {
+      await supabase.from('clientes').update(clienteEdit).eq('id', cliente.id)
+      onCardUpdate?.({
+        ...card,
+        cliente: { ...cliente, ...clienteEdit },
+      })
+      setEditandoCliente(false)
+    } catch {
+      /* erro silencioso */
+    } finally {
+      setSalvandoCliente(false)
     }
   }
 
@@ -284,14 +330,52 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, liberand
             <div className="space-y-5 animate-fade-in">
               {/* Client info */}
               <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Informações do Cliente
-                </h3>
-                <InfoRow icon={User} label="CNPJ" value={cliente?.cnpj} />
-                <InfoRow icon={Phone} label="Telefone" value={cliente?.telefone} isLink={`tel:${cliente?.telefone}`} />
-                <InfoRow icon={Mail} label="E-mail" value={cliente?.email} isLink={`mailto:${cliente?.email}`} />
-                <InfoRow icon={MapPin} label="Cidade" value={`${cliente?.cidade}/${cliente?.estado}`} />
-                <InfoRow icon={Tag} label="Segmento" value={cliente?.segmento} />
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Informações do Cliente
+                  </h3>
+                  {!editandoCliente && (
+                    <button
+                      type="button"
+                      onClick={openEditCliente}
+                      className="text-xs font-medium text-rca-primary hover:underline"
+                    >
+                      Editar
+                    </button>
+                  )}
+                </div>
+
+                {editandoCliente ? (
+                  <form onSubmit={saveClienteEdit} className="space-y-2">
+                    <EditField label="Nome fantasia" value={clienteEdit.nome_fantasia} onChange={(v) => setClienteEdit((p) => ({ ...p, nome_fantasia: v }))} />
+                    <EditField label="Pessoa de contato" value={clienteEdit.nome_contato} onChange={(v) => setClienteEdit((p) => ({ ...p, nome_contato: v }))} />
+                    <EditField label="CNPJ" value={clienteEdit.cnpj} onChange={(v) => setClienteEdit((p) => ({ ...p, cnpj: v }))} />
+                    <EditField label="Telefone" value={clienteEdit.telefone} onChange={(v) => setClienteEdit((p) => ({ ...p, telefone: v }))} />
+                    <EditField label="E-mail" type="email" value={clienteEdit.email} onChange={(v) => setClienteEdit((p) => ({ ...p, email: v }))} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <EditField label="Cidade" value={clienteEdit.cidade} onChange={(v) => setClienteEdit((p) => ({ ...p, cidade: v }))} />
+                      <EditField label="Estado" value={clienteEdit.estado} onChange={(v) => setClienteEdit((p) => ({ ...p, estado: v }))} />
+                    </div>
+                    <EditField label="Segmento" value={clienteEdit.segmento} onChange={(v) => setClienteEdit((p) => ({ ...p, segmento: v }))} />
+                    <div className="flex gap-2 pt-2">
+                      <button type="submit" disabled={salvandoCliente} className="rounded-lg bg-rca-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-rca-primary/90 disabled:opacity-60">
+                        {salvandoCliente ? 'Salvando...' : 'Salvar'}
+                      </button>
+                      <button type="button" onClick={() => setEditandoCliente(false)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <InfoRow icon={User} label="CNPJ" value={cliente?.cnpj} />
+                    <InfoRow icon={User} label="Contato" value={cliente?.nome_contato || '-'} />
+                    <InfoRow icon={Phone} label="Telefone" value={cliente?.telefone} isLink={`tel:${cliente?.telefone}`} />
+                    <InfoRow icon={Mail} label="E-mail" value={cliente?.email} isLink={`mailto:${cliente?.email}`} />
+                    <InfoRow icon={MapPin} label="Cidade" value={`${cliente?.cidade}/${cliente?.estado}`} />
+                    <InfoRow icon={Tag} label="Segmento" value={cliente?.segmento} />
+                  </>
+                )}
               </div>
 
               {/* Financial summary */}
@@ -303,6 +387,44 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, liberand
                   <MiniStat label="Total Compras" value={formatCurrency(cliente?.valor_historico)} />
                   <MiniStat label="Nº Pedidos" value={cliente?.qtd_compras} />
                   <MiniStat label="Última Compra" value={formatDate(cliente?.ultima_compra)} />
+                </div>
+              </div>
+
+              {/* Checklist de qualificação */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Checklist de Qualificação
+                </h3>
+                <CheckItem
+                  label="Cliente demonstrou interesse"
+                  checked={card.tem_interesse}
+                  onChange={(value) => updateChecklistField('tem_interesse', value)}
+                  icon={UserCheck}
+                />
+                <CheckItem
+                  label="Catálogo enviado"
+                  checked={card.catalogo_enviado}
+                  onChange={(value) => updateChecklistField('catalogo_enviado', value)}
+                  icon={FileCheck}
+                />
+                <CheckItem
+                  label="Atualização cadastral feita"
+                  checked={card.atualizacao_cadastral}
+                  onChange={(value) => updateChecklistField('atualizacao_cadastral', value)}
+                  icon={FileText}
+                />
+                <div className="flex items-center gap-3 rounded-xl bg-white px-3 py-2">
+                  <Briefcase size={14} className="text-slate-400 shrink-0" />
+                  <span className="text-xs text-slate-600 flex-1">Tipo de contato</span>
+                  <select
+                    value={card.tipo_contato_cliente || ''}
+                    onChange={(e) => updateChecklistField('tipo_contato_cliente', e.target.value || null)}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-rca-primary"
+                  >
+                    <option value="">—</option>
+                    <option value="representante">Representante</option>
+                    <option value="direto">Direto</option>
+                  </select>
                 </div>
               </div>
 
@@ -770,5 +892,52 @@ function MiniStat({ label, value }) {
       <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{label}</p>
       <p className="text-sm font-bold text-slate-700 mt-0.5">{value}</p>
     </div>
+  )
+}
+
+function CheckItem({ label, checked, onChange, icon: Icon }) {
+  const SIM = 'sim'
+  const NAO = 'nao'
+  const value = checked === true ? SIM : checked === false ? NAO : null
+
+  function handleChange(newValue) {
+    if (value === newValue) {
+      onChange(null)
+      return
+    }
+    onChange(newValue === SIM)
+  }
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5">
+      <Icon size={14} className="text-slate-400 shrink-0" />
+      <span className="text-xs text-slate-600 flex-1">{label}</span>
+      <button type="button" onClick={() => handleChange(SIM)} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700">
+        <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${value === SIM ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`}>
+          {value === SIM && <CheckCircle2 size={10} className="text-white" />}
+        </div>
+        Sim
+      </button>
+      <button type="button" onClick={() => handleChange(NAO)} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700">
+        <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${value === NAO ? 'border-red-400 bg-red-400' : 'border-slate-300'}`}>
+          {value === NAO && <CheckCircle2 size={10} className="text-white" />}
+        </div>
+        Não
+      </button>
+    </div>
+  )
+}
+
+function EditField({ label, value, onChange, type = 'text' }) {
+  return (
+    <label className="block text-xs font-medium text-slate-500">
+      <span className="block mb-0.5">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-700 outline-none focus:border-rca-primary focus:ring-1 focus:ring-rca-primary/20"
+      />
+    </label>
   )
 }

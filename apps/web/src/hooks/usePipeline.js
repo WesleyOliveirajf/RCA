@@ -6,6 +6,7 @@ import { podeMoverCard, podeLiberar, precisaLiberacaoParaMover, MSG_LEAD_NAO_LIB
 import {
   sbFetchPipelineCards,
   sbEnrichCardsWithClientes,
+  sbCreatePipelineCard,
   sbMoverCard,
   sbLiberarLead,
   sbDesqualificarLead,
@@ -122,6 +123,14 @@ export function usePipeline() {
     }
   }
 
+  async function criarCard(dados) {
+    const raw = await sbCreatePipelineCard(dados)
+    const [novoCard] = await sbEnrichCardsWithClientes([raw])
+    setCards((prev) => [novoCard, ...prev])
+    setError(null)
+    return novoCard
+  }
+
   async function liberarLead(cardId) {
     const card = cards.find((c) => c.id === cardId)
     if (
@@ -201,5 +210,5 @@ export function usePipeline() {
     }
   }
 
-  return { cards, loading, error, moverCard, liberarLead, desqualificarLead, refetch: fetchCards }
+  return { cards, setCards, loading, error, criarCard, moverCard, liberarLead, desqualificarLead, refetch: fetchCards }
 }

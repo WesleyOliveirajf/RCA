@@ -7,7 +7,6 @@ import {
   TrendingUp,
   MapPin,
   ShieldCheck,
-  Lock,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -57,10 +56,8 @@ function isOverdue(dateStr) {
 }
 
 /**
- * Determina os estilos visuais de liberação para cards na etapa lead_qualificado.
- * - Não liberado: borda vermelha, indicador vermelho
- * - Liberado: borda verde, indicador verde
- * - Fora da etapa lead_qualificado: sem indicador
+ * Determina o indicador visual legado de liberação para cards na etapa lead_qualificado.
+ * Cards não liberados continuam movíveis, então não recebem destaque de bloqueio.
  */
 function getLiberacaoStyle(card) {
   if (card.etapa !== 'lead_qualificado') {
@@ -82,18 +79,7 @@ function getLiberacaoStyle(card) {
     }
   }
 
-  return {
-    border: 'ring-2 ring-red-400/50 border-red-200',
-    indicator: (
-      <span
-        className="flex items-center gap-1 badge text-[10px] bg-red-50 text-red-600 animate-pulse"
-        title="Aguardando liberação do admin"
-      >
-        <Lock size={11} />
-        Bloqueado
-      </span>
-    ),
-  }
+  return { border: '', indicator: null }
 }
 
 export function KanbanCard({
@@ -220,7 +206,7 @@ export function KanbanCard({
         )}
 
         <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {/* Botão de liberar lead (somente admin, somente lead_qualificado não liberado) */}
+          {/* Marcação legada de liberação; não bloqueia movimentação. */}
           {showLiberarBtn && (
             <button
               onClick={handleLiberar}
@@ -231,7 +217,7 @@ export function KanbanCard({
                 transition-all duration-200
                 border border-red-200 hover:border-emerald-300
               "
-              title="Liberar lead (somente admin)"
+              title="Marcar lead como liberado"
             >
               <ShieldCheck size={12} />
               Liberar

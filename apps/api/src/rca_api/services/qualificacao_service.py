@@ -19,22 +19,23 @@ class QualificacaoService:
         payload = dados.model_dump()
         payload["card_id"] = card_id
         payload["avaliador_id"] = user.id
-        payload["aprovado"] = True
         qualificacao = self._qual_repo.criar(payload)
 
-        score_total = qualificacao.get("score_total", 0)
-        self._pipeline_repo.atualizar(card_id, {
-            "score": score_total,
-            "etapa": "lead_qualificado",
-        })
+        score_total = qualificacao.get("score_total")
+        if dados.aprovado:
+            update = {"etapa": "lead_qualificado"}
+            if score_total is not None:
+                update["score"] = score_total
+            self._pipeline_repo.atualizar(card_id, update)
         self._pipeline_repo.registrar_atividade(
             card_id,
             user.id,
-            "qualificacao",
+            "analise",
             {
+                "analisado": dados.aprovado,
                 "score_total": score_total,
                 "de": "primeiro_contato",
-                "para": "lead_qualificado",
+                "para": "lead_qualificado" if dados.aprovado else card.get("etapa"),
             },
         )
         return qualificacao

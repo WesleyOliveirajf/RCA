@@ -109,6 +109,53 @@ export async function sbMoverCard(cardId, etapaDestino, posicao, etapaAnterior) 
   return data
 }
 
+export async function sbCreatePipelineCard(dados) {
+  const userId = await sessionUserId()
+  if (!userId) throw new Error('Usuário não autenticado')
+
+  const payload = {
+    cliente_id: dados.cliente_id,
+    etapa: dados.etapa ?? 'inativos',
+    prioridade: dados.prioridade ?? 'media',
+    posicao: dados.posicao ?? 0,
+    responsavel_id: dados.responsavel_id ?? userId,
+    notas: dados.notas || null,
+  }
+
+  const { data, error } = await supabase
+    .from('pipeline_cards')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('Este cliente já possui um card no pipeline.')
+    }
+    throw error
+  }
+
+  const novoStatus = statusFromEtapa(payload.etapa)
+  if (novoStatus) {
+    const { error: statusErr } = await supabase
+      .from('clientes')
+      .update({ status: novoStatus })
+      .eq('id', payload.cliente_id)
+    if (statusErr) {
+      console.warn('Status do cliente não sincronizado:', statusErr.message)
+    }
+  }
+
+  await supabase.from('atividades').insert({
+    card_id: data.id,
+    usuario_id: userId,
+    acao: 'criar_card',
+    detalhes: { etapa: payload.etapa },
+  })
+
+  return data
+}
+
 export async function sbLiberarLead(cardId) {
   const { data, error } = await supabase.rpc('fn_liberar_lead', { p_card_id: cardId })
   if (error) throw error
@@ -350,6 +397,7 @@ export async function sbFetchQualificacaoPendentes() {
   if (!enriched.length) return []
 
   const cardIds = enriched.map((c) => c.id)
+  const clienteIds = [...new Set(enriched.map((c) => c.cliente_id).filter(Boolean))]
   const { data: quals, error: qualsErr } = await supabase
     .from('qualificacoes')
     .select('*')
@@ -357,9 +405,26 @@ export async function sbFetchQualificacaoPendentes() {
     .order('created_at', { ascending: false })
   if (qualsErr) throw qualsErr
 
+  let contatos = []
+  if (clienteIds.length > 0) {
+    const { data, error: contatosErr } = await supabase
+      .from('contatos')
+      .select('*')
+      .in('cliente_id', clienteIds)
+      .order('data_contato', { ascending: false })
+    if (contatosErr) throw contatosErr
+    contatos = data ?? []
+  }
+
   const latestByCard = {}
   for (const q of quals ?? []) {
     if (!latestByCard[q.card_id]) latestByCard[q.card_id] = q
+  }
+
+  const contatosByCliente = {}
+  for (const contato of contatos) {
+    if (!contatosByCliente[contato.cliente_id]) contatosByCliente[contato.cliente_id] = []
+    contatosByCliente[contato.cliente_id].push(contato)
   }
 
   return enriched.map((card) => {
@@ -372,6 +437,7 @@ export async function sbFetchQualificacaoPendentes() {
       score_total: qualificacao?.score_total ?? card.score ?? 0,
       observacoes: qualificacao?.observacoes ?? null,
       aprovado: qualificacao?.aprovado ?? null,
+      contatos: contatosByCliente[card.cliente_id] ?? [],
       created_at: qualificacao?.created_at ?? card.updated_at ?? card.created_at,
     }
   })
@@ -380,7 +446,7 @@ export async function sbFetchQualificacaoPendentes() {
 export async function sbFetchQualificacaoStats() {
   const [{ data: cards, error: cardsErr }, { data: quals, error: qualsErr }] = await Promise.all([
     supabase.from('pipeline_cards').select('etapa'),
-    supabase.from('qualificacoes').select('id'),
+    supabase.from('qualificacoes').select('id, aprovado'),
   ])
   if (cardsErr) throw cardsErr
   if (qualsErr) throw qualsErr
@@ -392,7 +458,7 @@ export async function sbFetchQualificacaoStats() {
 
   return {
     totalPendentes: etapaCounts[ETAPA_QUALIFICACAO] ?? 0,
-    totalAprovados: etapaCounts[ETAPA_APOS_QUALIFICACAO] ?? 0,
+    totalAprovados: (quals ?? []).filter((q) => q.aprovado === true).length,
     totalQualificacoes: (quals ?? []).length,
   }
 }
@@ -419,35 +485,36 @@ export async function sbRegistrarQualificacao(cardId, dados) {
   const userId = await sessionUserId()
   if (!userId) throw new Error('Usuário não autenticado')
 
+  const aprovado = dados.aprovado === true
   const { data, error } = await supabase
     .from('qualificacoes')
     .insert({
-      ...dados,
       card_id: cardId,
       avaliador_id: userId,
-      aprovado: true,
+      aprovado,
+      observacoes: dados.observacoes ?? null,
     })
     .select()
     .single()
   if (error) throw error
 
-  const { error: cardErr } = await supabase
-    .from('pipeline_cards')
-    .update({
-      score: data.score_total,
-      etapa: ETAPA_APOS_QUALIFICACAO,
-    })
-    .eq('id', cardId)
-  if (cardErr) throw cardErr
+  if (aprovado) {
+    const { error: cardErr } = await supabase
+      .from('pipeline_cards')
+      .update({ etapa: ETAPA_APOS_QUALIFICACAO })
+      .eq('id', cardId)
+    if (cardErr) throw cardErr
+  }
 
   await supabase.from('atividades').insert({
     card_id: cardId,
     usuario_id: userId,
-    acao: 'qualificacao',
+    acao: 'analise',
     detalhes: {
+      analisado: aprovado,
       score_total: data.score_total,
       de: ETAPA_QUALIFICACAO,
-      para: ETAPA_APOS_QUALIFICACAO,
+      para: aprovado ? ETAPA_APOS_QUALIFICACAO : ETAPA_QUALIFICACAO,
     },
   })
 

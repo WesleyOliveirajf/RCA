@@ -10,13 +10,20 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { KanbanColumn } from './KanbanColumn'
 import { CardDetail } from './CardDetail'
 import { usePipeline } from '@/hooks/usePipeline'
 import { useSync } from '@/hooks/useSync'
 import { useAuth } from '@/contexts/AuthContext'
-import { ETAPAS, podeMoverCard, podeLiberar, precisaLiberacaoParaMover, MSG_LEAD_NAO_LIBERADO, formatCurrency, PRIORIDADE_CORES } from '@/lib/utils'
-import { Search, Filter, RefreshCw, AlertCircle, ShieldCheck, CheckCircle2, MapPin } from 'lucide-react'
+import { podeMoverCard, podeLiberar, precisaLiberacaoParaMover, MSG_LEAD_NAO_LIBERADO, formatCurrency, PRIORIDADE_CORES, getColumnOrder, saveColumnOrder, orderedEtapas, getColumnLabels, saveColumnLabels, getPipelineColumns, getCustomColumns, saveCustomColumns, createCustomColumn } from '@/lib/utils'
+import { Search, Filter, RefreshCw, AlertCircle, ShieldCheck, CheckCircle2, MapPin, GripVertical, Plus, X } from 'lucide-react'
 
 /**
  * Preview card exibido durante drag-and-drop.
@@ -58,8 +65,51 @@ function CardDragPreview({ card }) {
   )
 }
 
+function SortableColumnWrapper({ etapa, cards, activeCard, canDrop, isAdmin, onLiberar, onCardContextMenu, onCardClick, disabled, label, onLabelChange }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: etapa.id, data: { type: 'column' }, disabled })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="shrink-0">
+      <div className="flex items-center justify-center -mb-1 relative z-10 opacity-0 hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="flex items-center justify-center w-full py-0.5 text-slate-300 hover:text-slate-500 transition-colors cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
+        </button>
+      </div>
+      <KanbanColumn
+        etapa={etapa}
+        cards={cards}
+        onCardClick={onCardClick}
+        canDrop={canDrop}
+        isAdmin={isAdmin}
+        onLiberar={onLiberar}
+        onCardContextMenu={onCardContextMenu}
+        label={label}
+        onLabelChange={onLabelChange}
+      />
+    </div>
+  )
+}
+
 export function KanbanBoard() {
-  const { cards, loading, error, moverCard, liberarLead, desqualificarLead, refetch } = usePipeline()
+  const { cards, setCards, loading, error, moverCard, liberarLead, desqualificarLead, refetch } = usePipeline()
   const { user, profile } = useAuth()
   const { executar: executarSync, loading: syncing } = useSync()
   const [activeCard, setActiveCard] = useState(null)
@@ -70,6 +120,51 @@ export function KanbanBoard() {
   const [moving, setMoving] = useState(false)
   const [desqualificandoId, setDesqualificandoId] = useState(null)
   const [moveError, setMoveError] = useState(null)
+  const [pipelineColumns, setPipelineColumns] = useState(() => getPipelineColumns())
+  const [columnOrder, setColumnOrder] = useState(() => getColumnOrder())
+  const [columnLabels, setColumnLabels] = useState(() => getColumnLabels())
+  const [showCreateColumn, setShowCreateColumn] = useState(false)
+  const [newColumnName, setNewColumnName] = useState('')
+  const [createColumnError, setCreateColumnError] = useState(null)
+
+  function handleRenameColumn(etapaId, newLabel) {
+    setColumnLabels((prev) => {
+      const next = { ...prev, [etapaId]: newLabel }
+      saveColumnLabels(next)
+      return next
+    })
+  }
+
+  function handleCardUpdate(updatedCard) {
+    setCards((prev) => prev.map((c) => (c.id === updatedCard.id ? { ...c, ...updatedCard } : c)))
+    setSelectedCard((prev) => (prev?.id === updatedCard.id ? { ...prev, ...updatedCard } : prev))
+  }
+
+  function handleCreateColumn(event) {
+    event.preventDefault()
+    const label = newColumnName.trim()
+    if (!label) {
+      setCreateColumnError('Informe o nome da coluna.')
+      return
+    }
+    if (pipelineColumns.some((col) => col.label.toLowerCase() === label.toLowerCase())) {
+      setCreateColumnError('Já existe uma coluna com esse nome.')
+      return
+    }
+
+    const newColumn = createCustomColumn(label)
+    const customColumns = [...getCustomColumns(), newColumn]
+    const nextColumns = [...pipelineColumns, newColumn]
+    const nextOrder = [...columnOrder, newColumn.id]
+
+    saveCustomColumns(customColumns)
+    saveColumnOrder(nextOrder)
+    setPipelineColumns(nextColumns)
+    setColumnOrder(nextOrder)
+    setNewColumnName('')
+    setCreateColumnError(null)
+    setShowCreateColumn(false)
+  }
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState(null)
@@ -140,13 +235,13 @@ export function KanbanBoard() {
 
   const cardsByEtapa = useMemo(() => {
     const grouped = {}
-    ETAPAS.forEach((etapa) => {
+    pipelineColumns.forEach((etapa) => {
       grouped[etapa.id] = filteredCards
         .filter((c) => c.etapa === etapa.id)
         .sort((a, b) => a.posicao - b.posicao)
     })
     return grouped
-  }, [filteredCards])
+  }, [filteredCards, pipelineColumns])
 
   function canDropOnEtapa(card, etapaId) {
     if (!card) return false
@@ -178,7 +273,7 @@ export function KanbanBoard() {
   }
 
   function resolveTargetEtapa(overId) {
-    if (ETAPAS.some((e) => e.id === overId)) return overId
+    if (pipelineColumns.some((e) => e.id === overId)) return overId
     const overCard = cards.find((c) => c.id === overId)
     return overCard?.etapa ?? null
   }
@@ -190,6 +285,10 @@ export function KanbanBoard() {
   }
 
   function handleDragStart(event) {
+    if (event.active.data?.current?.type === 'column') {
+      setActiveCard(null)
+      return
+    }
     const card = cards.find((c) => c.id === event.active.id)
     setActiveCard(card)
   }
@@ -197,6 +296,21 @@ export function KanbanBoard() {
   async function handleDragEnd(event) {
     const { active, over } = event
     setActiveCard(null)
+
+    if (active.data?.current?.type === 'column') {
+      if (over && active.id !== over.id) {
+        setColumnOrder((prev) => {
+          const current = orderedEtapas(prev, pipelineColumns).map((etapa) => etapa.id)
+          const oldIdx = current.indexOf(active.id)
+          const newIdx = current.indexOf(over.id)
+          if (oldIdx < 0 || newIdx < 0) return prev
+          const next = arrayMove(current, oldIdx, newIdx)
+          saveColumnOrder(next)
+          return next
+        })
+      }
+      return
+    }
 
     if (moving) return
 
@@ -295,7 +409,7 @@ export function KanbanBoard() {
       liberado: card.liberado,
     })
 
-    const moveTargets = ETAPAS.filter((et) =>
+    const moveTargets = pipelineColumns.filter((et) =>
       et.id !== card.etapa &&
       canDropOnEtapa(card, et.id)
     )
@@ -388,6 +502,17 @@ export function KanbanBoard() {
           Filtros
         </button>
 
+        <button
+          onClick={() => {
+            setShowCreateColumn(true)
+            setCreateColumnError(null)
+          }}
+          className="inline-flex items-center gap-2 rounded-xl bg-rca-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-rca-primary/90"
+        >
+          <Plus size={14} />
+          Nova coluna
+        </button>
+
         <div className="hidden sm:flex items-center gap-4 ml-auto text-xs text-slate-400">
           <span>
             <strong className="text-slate-600">{totalCards}</strong> cards
@@ -444,20 +569,25 @@ export function KanbanBoard() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
-          {ETAPAS.map((etapa) => (
-            <KanbanColumn
-              key={etapa.id}
-              etapa={etapa}
-              cards={cardsByEtapa[etapa.id] || []}
-              onCardClick={setSelectedCard}
-              canDrop={activeCard ? canDropOnEtapa(activeCard, etapa.id) : true}
-              isAdmin={isAdmin}
-              onLiberar={handleLiberarLead}
-              onCardContextMenu={handleCardContextMenu}
-            />
-          ))}
-        </div>
+        <SortableContext items={orderedEtapas(columnOrder, pipelineColumns).map((etapa) => etapa.id)} strategy={horizontalListSortingStrategy}>
+          <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
+            {orderedEtapas(columnOrder, pipelineColumns).map((etapa) => (
+              <SortableColumnWrapper
+                key={etapa.id}
+                etapa={etapa}
+                cards={cardsByEtapa[etapa.id] || []}
+                onCardClick={setSelectedCard}
+                canDrop={activeCard ? canDropOnEtapa(activeCard, etapa.id) : true}
+                isAdmin={isAdmin}
+                onLiberar={handleLiberarLead}
+                onCardContextMenu={handleCardContextMenu}
+                disabled={!!activeCard}
+                label={columnLabels[etapa.id]}
+                onLabelChange={handleRenameColumn}
+              />
+            ))}
+          </div>
+        </SortableContext>
 
         <DragOverlay dropAnimation={null}>
           {activeCard ? (
@@ -545,9 +675,65 @@ export function KanbanBoard() {
           onClose={() => setSelectedCard(null)}
           onLiberar={handleLiberarLead}
           onDesqualificar={handleDesqualificarLead}
+          onCardUpdate={handleCardUpdate}
           liberando={liberandoId === selectedCard.id}
           desqualificando={desqualificandoId === selectedCard.id}
         />
+      )}
+
+      {showCreateColumn && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl animate-fade-in-up">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Nova coluna</h2>
+                <p className="text-sm text-slate-500">Crie uma nova etapa visual no pipeline.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateColumn(false)}
+                className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateColumn} className="space-y-4 px-5 py-4">
+              <label className="block space-y-1 text-sm font-medium text-slate-700">
+                Nome da coluna
+                <input
+                  value={newColumnName}
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  placeholder="Ex.: Follow-up, Proposta enviada, Aguardando retorno"
+                  className="input text-sm"
+                  autoFocus
+                />
+              </label>
+
+              {createColumnError && (
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">{createColumnError}</p>
+              )}
+
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateColumn(false)}
+                  className="btn-secondary btn-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newColumnName.trim()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-rca-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rca-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Plus size={15} />
+                  Criar coluna
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   )

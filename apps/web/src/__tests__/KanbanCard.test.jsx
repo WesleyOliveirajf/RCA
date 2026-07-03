@@ -27,11 +27,11 @@ describe('KanbanCard', () => {
     expect(screen.getByText('85')).toBeTruthy()
   })
 
-  it('exibe badge Bloqueado em lead_qualificado não liberado', () => {
+  it('não exibe badge Bloqueado em lead_qualificado não liberado', () => {
     renderCard({
       card: { ...baseCard, etapa: 'lead_qualificado', liberado: false },
     })
-    expect(screen.getByText('Bloqueado')).toBeTruthy()
+    expect(screen.queryByText('Bloqueado')).toBeNull()
   })
 
   it('exibe badge Liberado em lead_qualificado liberado', () => {
@@ -47,14 +47,14 @@ describe('KanbanCard', () => {
     expect(screen.queryByText('Liberado')).toBeNull()
   })
 
-  it('exibe botão Liberar para admin em lead bloqueado', () => {
+  it('exibe botão de marcar liberado para admin', () => {
     const onLiberar = vi.fn()
     renderCard({
       card: { ...baseCard, etapa: 'lead_qualificado', liberado: false },
       isAdmin: true,
       onLiberar,
     })
-    const btn = screen.getByTitle('Liberar lead (somente admin)')
+    const btn = screen.getByTitle('Marcar lead como liberado')
     fireEvent.click(btn)
     expect(onLiberar).toHaveBeenCalledWith('1')
   })
@@ -65,6 +65,6 @@ describe('KanbanCard', () => {
       isAdmin: false,
       onLiberar: vi.fn(),
     })
-    expect(screen.queryByTitle('Liberar lead (somente admin)')).toBeNull()
+    expect(screen.queryByTitle('Marcar lead como liberado')).toBeNull()
   })
 })

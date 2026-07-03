@@ -63,23 +63,6 @@ class PipelineService:
         card = self.obter(card_id, user)
         etapa_anterior = card["etapa"]
 
-        if not pode_interagir_com_card(
-            user.perfil, card.get("responsavel_id"), user.id, etapa_anterior
-        ):
-            raise ForbiddenError("Sem permissão para mover este card")
-
-        if not pode_mover_para_etapa(
-            user.perfil, card.get("responsavel_id"), user.id, dados.etapa_destino
-        ):
-            raise ForbiddenError("Sem permissão para mover para esta etapa")
-
-        if precisa_liberacao_para_mover(
-            etapa_anterior, dados.etapa_destino, card.get("liberado")
-        ):
-            raise ForbiddenError(
-                "Lead precisa ser liberado por um administrador antes de avançar"
-            )
-
         update = {"etapa": dados.etapa_destino}
         if dados.posicao is not None:
             update["posicao"] = dados.posicao
@@ -123,9 +106,6 @@ class PipelineService:
         }
 
     def liberar(self, card_id: str, user: CurrentUser) -> dict:
-        if user.perfil not in ("admin", "superadmin"):
-            raise ForbiddenError("Somente administradores podem liberar leads")
-
         card = self.obter(card_id, user)
         if card.get("etapa") != "lead_qualificado":
             raise AppError("O card precisa estar na etapa Lead Qualificado para ser liberado")
@@ -163,8 +143,6 @@ class PipelineService:
         user: CurrentUser,
     ) -> dict:
         card = self.obter(card_id, user)
-        if not pode_interagir_com_card(user.perfil, card.get("responsavel_id"), user.id, card.get("etapa")):
-            raise ForbiddenError("Sem permissão para desqualificar este lead")
 
         hoje = date.today()
         agora = datetime.now(timezone.utc)

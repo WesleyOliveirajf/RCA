@@ -14,7 +14,7 @@ const ROUTE_TITLES = {
   '/': 'Pipeline',
   '/clientes': 'Clientes',
   '/dashboard': 'Dashboard',
-  '/qualificacao': 'Qualificação',
+  '/qualificacao': 'Em Análise',
   '/usuarios': 'Usuários',
   '/config': 'Configurações',
 }

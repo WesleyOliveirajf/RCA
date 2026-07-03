@@ -1,11 +1,9 @@
-import pytest
-
 from rca_api.core.security import pode_mover_card, precisa_liberacao_para_mover
 
 
 class TestPrecisaLiberacaoParaMover:
-    def test_bloqueia_avanco_sem_liberacao(self):
-        assert precisa_liberacao_para_mover("lead_qualificado", "negociacao", False) is True
+    def test_nao_bloqueia_avanco_sem_liberacao(self):
+        assert precisa_liberacao_para_mover("lead_qualificado", "negociacao", False) is False
 
     def test_permite_avanco_quando_liberado(self):
         assert precisa_liberacao_para_mover("lead_qualificado", "negociacao", True) is False
@@ -18,7 +16,7 @@ class TestPrecisaLiberacaoParaMover:
 
 
 class TestPodeExcluirCard:
-    def test_vendedor_nunca_pode_excluir(self):
+    def test_vendedor_pode_excluir(self):
         from rca_api.core.security import pode_excluir_card
 
         assert (
@@ -28,7 +26,7 @@ class TestPodeExcluirCard:
                 user_id="user-1",
                 etapa="negociacao",
             )
-            is False
+            is True
         )
 
     def test_supervisor_pode_excluir_card_proprio_fechado(self):
@@ -44,7 +42,7 @@ class TestPodeExcluirCard:
             is True
         )
 
-    def test_supervisor_nao_exclui_funil_aberto_de_outro(self):
+    def test_supervisor_pode_excluir_funil_aberto_de_outro(self):
         from rca_api.core.security import pode_excluir_card
 
         assert (
@@ -54,7 +52,7 @@ class TestPodeExcluirCard:
                 user_id="user-2",
                 etapa="inativos",
             )
-            is False
+            is True
         )
 
     def test_admin_pode_excluir_funil_aberto_de_outro(self):
@@ -72,7 +70,7 @@ class TestPodeExcluirCard:
 
 
 class TestPodeMoverCard:
-    def test_vendedor_bloqueado_sem_liberacao(self):
+    def test_vendedor_pode_mover_sem_liberacao(self):
         assert (
             pode_mover_card(
                 perfil="vendedor",
@@ -82,7 +80,7 @@ class TestPodeMoverCard:
                 etapa_destino="negociacao",
                 liberado=False,
             )
-            is False
+            is True
         )
 
     def test_vendedor_pode_avancar_apos_liberacao(self):

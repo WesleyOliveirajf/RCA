@@ -7,14 +7,14 @@ import {
 } from '../lib/utils'
 
 describe('precisaLiberacaoParaMover', () => {
-  it('exige liberação para sair de lead_qualificado para negociacao', () => {
+  it('não exige liberação para sair de lead_qualificado para negociacao', () => {
     expect(
       precisaLiberacaoParaMover({
         etapaAtual: 'lead_qualificado',
         etapaDestino: 'negociacao',
         liberado: false,
       })
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('permite avanço quando liberado', () => {
@@ -39,21 +39,16 @@ describe('precisaLiberacaoParaMover', () => {
 })
 
 describe('podeLiberar', () => {
-  it('somente admin em lead_qualificado não liberado', () => {
+  it('mantém ação de liberação disponível como marcação legada', () => {
     expect(
       podeLiberar({ perfil: 'admin', etapaAtual: 'lead_qualificado', liberado: false })
     ).toBe(true)
-    expect(
-      podeLiberar({ perfil: 'vendedor', etapaAtual: 'lead_qualificado', liberado: false })
-    ).toBe(false)
-    expect(
-      podeLiberar({ perfil: 'admin', etapaAtual: 'lead_qualificado', liberado: true })
-    ).toBe(false)
+    expect(podeLiberar({ perfil: 'vendedor', etapaAtual: 'negociacao', liberado: true })).toBe(true)
   })
 })
 
 describe('podeMoverCard com liberação', () => {
-  it('bloqueia vendedor sem liberação', () => {
+  it('permite vendedor mover sem liberação', () => {
     expect(
       podeMoverCard({
         perfil: 'vendedor',
@@ -63,12 +58,12 @@ describe('podeMoverCard com liberação', () => {
         etapaDestino: 'negociacao',
         liberado: false,
       })
-    ).toBe(false)
+    ).toBe(true)
   })
 })
 
 describe('MSG_LEAD_NAO_LIBERADO', () => {
-  it('tem mensagem orientativa', () => {
-    expect(MSG_LEAD_NAO_LIBERADO).toContain('administrador')
+  it('tem mensagem de movimentação aberta', () => {
+    expect(MSG_LEAD_NAO_LIBERADO).toContain('liberada')
   })
 })
