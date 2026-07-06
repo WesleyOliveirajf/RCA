@@ -72,6 +72,8 @@ const RESULTADO_OPTIONS = [
 
 const CONTATO_INICIAL = {
   tipo: 'ligacao',
+  nome_contato: '',
+  area_contato: '',
   resultado: '',
   resumo: '',
   duracao_minutos: '',
@@ -155,6 +157,8 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
         cliente_id: card.cliente_id,
         card_id: card.id,
         tipo: contatoForm.tipo,
+        nome_contato: contatoForm.nome_contato.trim() || null,
+        area_contato: contatoForm.area_contato.trim() || null,
         resumo,
         resultado: contatoForm.resultado || null,
         duracao_minutos: contatoForm.duracao_minutos
@@ -598,6 +602,30 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
                   </label>
                 </div>
 
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1 text-xs font-medium text-slate-500">
+                    Nome do contato
+                    <input
+                      type="text"
+                      value={contatoForm.nome_contato}
+                      onChange={(e) => setContatoForm((prev) => ({ ...prev, nome_contato: e.target.value }))}
+                      placeholder="Ex.: Maria Silva"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-300 focus:border-rca-primary focus:ring-2 focus:ring-rca-primary/10"
+                    />
+                  </label>
+
+                  <label className="space-y-1 text-xs font-medium text-slate-500">
+                    Área do contato
+                    <input
+                      type="text"
+                      value={contatoForm.area_contato}
+                      onChange={(e) => setContatoForm((prev) => ({ ...prev, area_contato: e.target.value }))}
+                      placeholder="Ex.: Compras, Financeiro, Diretoria"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-300 focus:border-rca-primary focus:ring-2 focus:ring-rca-primary/10"
+                    />
+                  </label>
+                </div>
+
                 <label className="mt-3 block space-y-1 text-xs font-medium text-slate-500">
                   Relato
                   <textarea
@@ -681,6 +709,11 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
                               </span>
                             )}
                           </div>
+                          {(contato.nome_contato || contato.area_contato) && (
+                            <p className="mb-1 text-xs font-medium text-slate-500">
+                              {[contato.nome_contato, contato.area_contato].filter(Boolean).join(' • ')}
+                            </p>
+                          )}
                           <p className="text-sm text-slate-600 leading-relaxed">
                             {contato.resumo}
                           </p>

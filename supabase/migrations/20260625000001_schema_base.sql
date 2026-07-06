@@ -76,6 +76,8 @@ CREATE TABLE public.contatos (
   usuario_id UUID NOT NULL REFERENCES public.usuarios(id),
   tipo TEXT NOT NULL
     CHECK (tipo IN ('ligacao', 'whatsapp', 'email', 'visita', 'pos_venda', 'sistema')),
+  nome_contato TEXT,
+  area_contato TEXT,
   direcao TEXT DEFAULT 'saida' CHECK (direcao IN ('entrada', 'saida')),
   resumo TEXT NOT NULL,
   resultado TEXT CHECK (resultado IN (

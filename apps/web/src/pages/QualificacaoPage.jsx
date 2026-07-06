@@ -280,6 +280,11 @@ function ContatoResumo({ contatos }) {
                   <span className="text-slate-400">{contato.duracao_minutos} min</span>
                 ) : null}
               </div>
+              {(contato.nome_contato || contato.area_contato) && (
+                <p className="mb-1 text-xs font-medium text-slate-500">
+                  {[contato.nome_contato, contato.area_contato].filter(Boolean).join(' • ')}
+                </p>
+              )}
               <p className="text-sm leading-relaxed text-slate-600">{contato.resumo}</p>
             </div>
           ))}
