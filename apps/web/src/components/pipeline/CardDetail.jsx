@@ -45,6 +45,7 @@ const TIPO_ICONS = {
 
 const RESULTADO_COLORS = {
   sem_resposta: 'bg-slate-100 text-slate-600',
+  sem_sucesso: 'bg-orange-50 text-orange-700',
   interessado: 'bg-emerald-50 text-emerald-600',
   sem_interesse: 'bg-red-50 text-red-600',
   agendar_retorno: 'bg-blue-50 text-blue-600',
@@ -64,6 +65,7 @@ const TIPO_OPTIONS = [
 const RESULTADO_OPTIONS = [
   { value: '', label: 'Sem resultado definido' },
   { value: 'sem_resposta', label: 'Sem resposta' },
+  { value: 'sem_sucesso', label: 'Sem Sucesso' },
   { value: 'interessado', label: 'Interessado' },
   { value: 'sem_interesse', label: 'Sem interesse' },
   { value: 'agendar_retorno', label: 'Agendar retorno' },
@@ -80,9 +82,14 @@ const CONTATO_INICIAL = {
   resumo: '',
   duracao_minutos: '',
   proximo_contato: '',
-  tarefa_agendada_para: '',
-  tarefa_titulo: '',
 }
+
+const TAREFA_INICIAL = {
+  tarefa_titulo: '',
+  tarefa_agendada_para: '',
+}
+
+const RESULTADO_LABELS = Object.fromEntries(RESULTADO_OPTIONS.map((option) => [option.value, option.label]))
 
 const DESQUALIFICACAO_INICIAL = {
   motivo: '',
@@ -123,8 +130,11 @@ const CHECKLIST_CONFIRMADO = {
 export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUpdate, liberando = false, desqualificando = false }) {
   const [activeTab, setActiveTab] = useState('dados')
   const [contatoForm, setContatoForm] = useState(CONTATO_INICIAL)
+  const [tarefaForm, setTarefaForm] = useState(TAREFA_INICIAL)
   const [salvandoContato, setSalvandoContato] = useState(false)
+  const [salvandoTarefa, setSalvandoTarefa] = useState(false)
   const [erroContato, setErroContato] = useState(null)
+  const [erroTarefa, setErroTarefa] = useState(null)
   const [showDesqualificacao, setShowDesqualificacao] = useState(false)
   const [desqualificacaoForm, setDesqualificacaoForm] = useState(DESQUALIFICACAO_INICIAL)
   const [erroDesqualificacao, setErroDesqualificacao] = useState(null)
@@ -169,33 +179,55 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
           ? Number(contatoForm.duracao_minutos)
           : null,
         proximo_contato: contatoForm.proximo_contato || null,
-        tarefa_agendada_para: contatoForm.tarefa_agendada_para || null,
-        tarefa_titulo: contatoForm.tarefa_titulo || null,
       })
-      let novaTarefa = null
-      if (contatoForm.tarefa_agendada_para) {
-        novaTarefa = await sbCreateLeadTarefa({
-          card_id: card.id,
-          cliente_id: card.cliente_id,
-          titulo: contatoForm.tarefa_titulo?.trim() || 'Retornar contato com o lead',
-          descricao: resumo,
-          agendado_para: contatoForm.tarefa_agendada_para,
-          tipo: 'contato',
-        })
-        onCardUpdate?.({
-          ...card,
-          proximo_contato: contatoForm.tarefa_agendada_para.slice(0, 10),
-          tarefas_pendentes: [
-            ...(card.tarefas_pendentes || []),
-            novaTarefa,
-          ].sort((a, b) => new Date(a.agendado_para || a.vencimento) - new Date(b.agendado_para || b.vencimento)),
-        })
-      }
       setContatoForm(CONTATO_INICIAL)
     } catch (err) {
       setErroContato(err.message ?? 'Não foi possível salvar o relato.')
     } finally {
       setSalvandoContato(false)
+    }
+  }
+
+  async function handleTarefaSubmit(event) {
+    event.preventDefault()
+
+    if (!tarefaForm.tarefa_agendada_para) {
+      setErroTarefa('Informe a data e hora da tarefa.')
+      return
+    }
+
+    setSalvandoTarefa(true)
+    setErroTarefa(null)
+
+    try {
+      const novaTarefa = await sbCreateLeadTarefa({
+        card_id: card.id,
+        cliente_id: card.cliente_id,
+        titulo: tarefaForm.tarefa_titulo.trim() || 'Retornar contato com o lead',
+        descricao: contatoForm.resumo.trim() || null,
+        agendado_para: tarefaForm.tarefa_agendada_para,
+        tipo: 'contato',
+      })
+      const proximoContato = tarefaForm.tarefa_agendada_para.slice(0, 10)
+      try {
+        await supabase
+          .from('pipeline_cards')
+          .update({ proximo_contato: proximoContato })
+          .eq('id', card.id)
+      } catch { /* fallback silencioso */ }
+      onCardUpdate?.({
+        ...card,
+        proximo_contato: proximoContato,
+        tarefas_pendentes: [
+          ...(card.tarefas_pendentes || []),
+          novaTarefa,
+        ].sort((a, b) => new Date(a.agendado_para || a.vencimento) - new Date(b.agendado_para || b.vencimento)),
+      })
+      setTarefaForm(TAREFA_INICIAL)
+    } catch (err) {
+      setErroTarefa(err.message ?? 'Não foi possível agendar a tarefa.')
+    } finally {
+      setSalvandoTarefa(false)
     }
   }
 
@@ -591,7 +623,7 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">Registrar relato do contato</h3>
                     <p className="text-xs text-slate-500">
-                      Descreva o que foi tratado com o cliente.
+                      Descreva o que foi tratado com o cliente. Agendar tarefa é opcional.
                     </p>
                   </div>
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-rca-primary shadow-sm">
@@ -675,43 +707,12 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
                   </label>
 
                   <label className="space-y-1 text-xs font-medium text-slate-500">
-                    Próximo contato
+                    Próximo contato (opcional)
                     <input
                       type="date"
                       value={contatoForm.proximo_contato}
                       onChange={(e) => setContatoForm((prev) => ({ ...prev, proximo_contato: e.target.value }))}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-rca-primary focus:ring-2 focus:ring-rca-primary/10"
-                    />
-                  </label>
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
-                  <div className="mb-3 flex items-start gap-2">
-                    <Bell size={16} className="mt-0.5 text-amber-600" />
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Agendar tarefa</p>
-                      <p className="text-xs text-amber-700/80">
-                        Quando chegar a data e hora, a pipeline mostra uma notificação e destaca o card.
-                      </p>
-                    </div>
-                  </div>
-                  <label className="block space-y-1 text-xs font-medium text-slate-500">
-                    Título da tarefa
-                    <input
-                      type="text"
-                      value={contatoForm.tarefa_titulo}
-                      onChange={(e) => setContatoForm((prev) => ({ ...prev, tarefa_titulo: e.target.value }))}
-                      placeholder="Ex.: Ligar para confirmar pedido"
-                      className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                    />
-                  </label>
-                  <label className="mt-3 block space-y-1 text-xs font-medium text-slate-500">
-                    Data e hora da tarefa
-                    <input
-                      type="datetime-local"
-                      value={contatoForm.tarefa_agendada_para}
-                      onChange={(e) => setContatoForm((prev) => ({ ...prev, tarefa_agendada_para: e.target.value }))}
-                      className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                     />
                   </label>
                 </div>
@@ -732,6 +733,55 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
                 </button>
               </form>
 
+              <form
+                onSubmit={handleTarefaSubmit}
+                className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 shadow-sm"
+              >
+                  <div className="mb-3 flex items-start gap-2">
+                    <Bell size={16} className="mt-0.5 text-amber-600" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Agendar tarefa opcional</p>
+                      <p className="text-xs text-amber-700/80">
+                        Quando chegar a data e hora, a pipeline mostra uma notificação e destaca o card.
+                      </p>
+                    </div>
+                  </div>
+                  <label className="block space-y-1 text-xs font-medium text-slate-500">
+                    Título da tarefa
+                    <input
+                      type="text"
+                      value={tarefaForm.tarefa_titulo}
+                      onChange={(e) => setTarefaForm((prev) => ({ ...prev, tarefa_titulo: e.target.value }))}
+                      placeholder="Ex.: Ligar para confirmar pedido"
+                      className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                    />
+                  </label>
+                  <label className="mt-3 block space-y-1 text-xs font-medium text-slate-500">
+                    Data e hora da tarefa
+                    <input
+                      type="datetime-local"
+                      value={tarefaForm.tarefa_agendada_para}
+                      onChange={(e) => setTarefaForm((prev) => ({ ...prev, tarefa_agendada_para: e.target.value }))}
+                      className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                    />
+                  </label>
+
+                {erroTarefa && (
+                  <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs text-red-600">
+                    {erroTarefa}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={salvandoTarefa}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {salvandoTarefa ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
+                  {salvandoTarefa ? 'Agendando tarefa...' : 'Salvar tarefa'}
+                </button>
+              </form>
+
               {loadingContatos ? (
                 <p className="py-12 text-center text-sm text-slate-400">Carregando contatos...</p>
               ) : contatos.length === 0 ? (
@@ -743,7 +793,7 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
                 contatos.map((contato) => {
                   const TipoIcon = TIPO_ICONS[contato.tipo] || MessageSquare
                   const resultadoColor = RESULTADO_COLORS[contato.resultado] || RESULTADO_COLORS.outro
-                  const resultadoLabel = contato.resultado?.replace(/_/g, ' ')
+                  const resultadoLabel = RESULTADO_LABELS[contato.resultado] || contato.resultado?.replace(/_/g, ' ')
 
                   return (
                     <div

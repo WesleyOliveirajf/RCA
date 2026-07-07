@@ -81,7 +81,7 @@ CREATE TABLE public.contatos (
   direcao TEXT DEFAULT 'saida' CHECK (direcao IN ('entrada', 'saida')),
   resumo TEXT NOT NULL,
   resultado TEXT CHECK (resultado IN (
-    'sem_resposta', 'interessado', 'sem_interesse',
+    'sem_resposta', 'sem_sucesso', 'interessado', 'sem_interesse',
     'agendar_retorno', 'pedido_realizado', 'reclamacao', 'outro'
   )),
   duracao_minutos INTEGER,

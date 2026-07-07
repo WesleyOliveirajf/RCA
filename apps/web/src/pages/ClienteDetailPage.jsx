@@ -17,7 +17,12 @@ const RESULTADO_BADGE = {
   interessado:      'teal',
   pedido_realizado: 'success',
   sem_resposta:     'default',
+  sem_sucesso:      'warning',
   agendar_retorno:  'warning',
+}
+
+const RESULTADO_LABEL = {
+  sem_sucesso: 'Sem Sucesso',
 }
 
 export function ClienteDetailPage() {
@@ -154,7 +159,7 @@ export function ClienteDetailPage() {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium capitalize text-slate-800">{c.tipo.replace(/_/g, ' ')}</p>
                       <Badge variant={RESULTADO_BADGE[c.resultado] ?? 'default'} size="sm">
-                        {c.resultado.replace(/_/g, ' ')}
+                        {RESULTADO_LABEL[c.resultado] ?? c.resultado.replace(/_/g, ' ')}
                       </Badge>
                     </div>
                     <p className="mt-0.5 text-sm text-slate-600">{c.resumo}</p>

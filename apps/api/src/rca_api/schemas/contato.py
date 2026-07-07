@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 TipoContato = Literal["ligacao", "whatsapp", "email", "visita", "pos_venda", "sistema"]
 ResultadoContato = Literal[
     "sem_resposta",
+    "sem_sucesso",
     "interessado",
     "sem_interesse",
     "agendar_retorno",

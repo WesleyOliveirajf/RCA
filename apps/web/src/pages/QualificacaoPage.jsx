@@ -295,6 +295,7 @@ function ContatoResumo({ contatos }) {
 }
 
 function formatContatoLabel(value) {
+  if (value === 'sem_sucesso') return 'Sem Sucesso'
   return String(value ?? '').replace(/_/g, ' ')
 }
 
