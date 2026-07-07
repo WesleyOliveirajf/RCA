@@ -23,7 +23,8 @@ import { usePipeline } from '@/hooks/usePipeline'
 import { useSync } from '@/hooks/useSync'
 import { useAuth } from '@/contexts/AuthContext'
 import { podeMoverCard, podeLiberar, precisaLiberacaoParaMover, MSG_LEAD_NAO_LIBERADO, formatCurrency, PRIORIDADE_CORES, getColumnOrder, saveColumnOrder, orderedEtapas, getColumnLabels, saveColumnLabels, getPipelineColumns, getCustomColumns, saveCustomColumns, createCustomColumn } from '@/lib/utils'
-import { Search, Filter, RefreshCw, AlertCircle, ShieldCheck, CheckCircle2, MapPin, GripVertical, Plus, X } from 'lucide-react'
+import { Search, Filter, RefreshCw, AlertCircle, ShieldCheck, CheckCircle2, MapPin, GripVertical, Plus, X, Bell } from 'lucide-react'
+import { sbFetchTarefasPendentes } from '@/lib/supabaseData'
 
 /**
  * Preview card exibido durante drag-and-drop.
@@ -126,6 +127,7 @@ export function KanbanBoard() {
   const [showCreateColumn, setShowCreateColumn] = useState(false)
   const [newColumnName, setNewColumnName] = useState('')
   const [createColumnError, setCreateColumnError] = useState(null)
+  const [tarefasNotificacao, setTarefasNotificacao] = useState([])
 
   function handleRenameColumn(etapaId, newLabel) {
     setColumnLabels((prev) => {
@@ -217,6 +219,26 @@ export function KanbanBoard() {
       return cards.find((c) => c.id === prev.id) ?? prev
     })
   }, [cards])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchTarefasVencidas() {
+      try {
+        const tarefas = await sbFetchTarefasPendentes({ vencidas: true })
+        if (!cancelled) setTarefasNotificacao(tarefas)
+      } catch {
+        if (!cancelled) setTarefasNotificacao([])
+      }
+    }
+
+    fetchTarefasVencidas()
+    const interval = setInterval(fetchTarefasVencidas, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
 
   const filteredCards = useMemo(() => {
     return cards.filter((card) => {
@@ -559,6 +581,32 @@ export function KanbanBoard() {
         <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <AlertCircle size={14} />
           {moveError}
+        </div>
+      )}
+
+      {tarefasNotificacao.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm">
+              <Bell size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">
+                {tarefasNotificacao.length} tarefa{tarefasNotificacao.length > 1 ? 's' : ''} pendente{tarefasNotificacao.length > 1 ? 's' : ''} agora
+              </p>
+              <div className="mt-1 space-y-1">
+                {tarefasNotificacao.slice(0, 3).map((tarefa) => {
+                  const card = cards.find((item) => item.id === tarefa.card_id)
+                  return (
+                    <p key={tarefa.id} className="truncate text-xs text-amber-800/90">
+                      <span className="font-semibold">{tarefa.titulo}</span>
+                      {card?.cliente?.nome_fantasia ? ` • ${card.cliente.nome_fantasia}` : ''}
+                    </p>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

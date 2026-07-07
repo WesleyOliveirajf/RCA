@@ -47,11 +47,10 @@ describe('KanbanCard', () => {
     expect(screen.queryByText('Liberado')).toBeNull()
   })
 
-  it('exibe botão de marcar liberado para admin', () => {
+  it('exibe botão de marcar liberado para qualquer usuário', () => {
     const onLiberar = vi.fn()
     renderCard({
       card: { ...baseCard, etapa: 'lead_qualificado', liberado: false },
-      isAdmin: true,
       onLiberar,
     })
     const btn = screen.getByTitle('Marcar lead como liberado')
@@ -59,10 +58,9 @@ describe('KanbanCard', () => {
     expect(onLiberar).toHaveBeenCalledWith('1')
   })
 
-  it('oculta botão Liberar para não-admin', () => {
+  it('oculta botão Liberar quando lead já está liberado', () => {
     renderCard({
-      card: { ...baseCard, etapa: 'lead_qualificado', liberado: false },
-      isAdmin: false,
+      card: { ...baseCard, etapa: 'lead_qualificado', liberado: true },
       onLiberar: vi.fn(),
     })
     expect(screen.queryByTitle('Marcar lead como liberado')).toBeNull()

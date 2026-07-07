@@ -7,6 +7,7 @@ import {
   TrendingUp,
   MapPin,
   ShieldCheck,
+  Bell,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -82,12 +83,22 @@ function getLiberacaoStyle(card) {
   return { border: '', indicator: null }
 }
 
+function getTarefaStatus(card) {
+  const tarefas = card.tarefas_pendentes || []
+  if (!tarefas.length) return null
+
+  const primeira = tarefas[0]
+  const agendada = primeira.agendado_para || primeira.vencimento
+  const vencida = agendada ? new Date(agendada) <= new Date() : false
+
+  return { tarefa: primeira, vencida }
+}
+
 export function KanbanCard({
   card,
   onClick,
   isDragging,
   style,
-  isAdmin = false,
   onLiberar,
   onContextMenu,
 }) {
@@ -109,9 +120,14 @@ export function KanbanCard({
   const prioStyle = PRIORIDADE_STYLES[card.prioridade] || PRIORIDADE_STYLES.media
   const overdue = isOverdue(card.proximo_contato)
   const liberacaoStyle = getLiberacaoStyle(card)
+  const tarefaStatus = getTarefaStatus(card)
+  const tarefaBorder = tarefaStatus
+    ? tarefaStatus.vencida
+      ? 'ring-2 ring-red-400/70 border-red-200 bg-red-50/35'
+      : 'ring-2 ring-amber-300/70 border-amber-200 bg-amber-50/30'
+    : ''
 
   const showLiberarBtn =
-    isAdmin &&
     card.etapa === 'lead_qualificado' &&
     !card.liberado
 
@@ -142,7 +158,7 @@ export function KanbanCard({
         animate-fade-in-up
         ${isDragging || isSortableDragging
           ? 'shadow-soft-xl ring-2 ring-rca-primary/30 opacity-95 scale-[1.02]'
-          : `shadow-soft-sm hover:shadow-soft-md hover:-translate-y-0.5 hover:border-slate-200 ${liberacaoStyle.border}`
+          : `shadow-soft-sm hover:shadow-soft-md hover:-translate-y-0.5 hover:border-slate-200 ${liberacaoStyle.border} ${tarefaBorder}`
         }
       `}
     >
@@ -152,6 +168,15 @@ export function KanbanCard({
         <span className={`badge text-[10px] ${prioStyle.badge}`}>
           {card.prioridade}
         </span>
+        {tarefaStatus && (
+          <span
+            className={`flex items-center gap-1 badge text-[10px] ${tarefaStatus.vencida ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}
+            title={tarefaStatus.tarefa.titulo}
+          >
+            <Bell size={11} />
+            {tarefaStatus.vencida ? 'Tarefa agora' : 'Tarefa'}
+          </span>
+        )}
         {liberacaoStyle.indicator}
         {card.valor_proposta && (
           <span className="badge text-[10px] bg-emerald-50 text-emerald-600 ml-auto">

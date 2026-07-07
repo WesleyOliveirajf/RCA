@@ -19,12 +19,14 @@ import {
   UserCheck,
   FileCheck,
   Briefcase,
+  Bell,
 } from 'lucide-react'
 import { formatCurrency, formatDate, getPipelineColumns, podeLiberar } from '@/lib/utils'
 import { useContatos } from '@/hooks/useContatos'
 import { useHistoricoCliente } from '@/hooks/useClientes'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, isDemoMode } from '@/lib/supabase'
+import { sbCreateLeadTarefa } from '@/lib/supabaseData'
 
 const TABS = [
   { id: 'dados', label: 'Dados', icon: User },
@@ -78,6 +80,8 @@ const CONTATO_INICIAL = {
   resumo: '',
   duracao_minutos: '',
   proximo_contato: '',
+  tarefa_agendada_para: '',
+  tarefa_titulo: '',
 }
 
 const DESQUALIFICACAO_INICIAL = {
@@ -165,7 +169,28 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
           ? Number(contatoForm.duracao_minutos)
           : null,
         proximo_contato: contatoForm.proximo_contato || null,
+        tarefa_agendada_para: contatoForm.tarefa_agendada_para || null,
+        tarefa_titulo: contatoForm.tarefa_titulo || null,
       })
+      let novaTarefa = null
+      if (contatoForm.tarefa_agendada_para) {
+        novaTarefa = await sbCreateLeadTarefa({
+          card_id: card.id,
+          cliente_id: card.cliente_id,
+          titulo: contatoForm.tarefa_titulo?.trim() || 'Retornar contato com o lead',
+          descricao: resumo,
+          agendado_para: contatoForm.tarefa_agendada_para,
+          tipo: 'contato',
+        })
+        onCardUpdate?.({
+          ...card,
+          proximo_contato: contatoForm.tarefa_agendada_para.slice(0, 10),
+          tarefas_pendentes: [
+            ...(card.tarefas_pendentes || []),
+            novaTarefa,
+          ].sort((a, b) => new Date(a.agendado_para || a.vencimento) - new Date(b.agendado_para || b.vencimento)),
+        })
+      }
       setContatoForm(CONTATO_INICIAL)
     } catch (err) {
       setErroContato(err.message ?? 'Não foi possível salvar o relato.')
@@ -656,6 +681,37 @@ export function CardDetail({ card, onClose, onLiberar, onDesqualificar, onCardUp
                       value={contatoForm.proximo_contato}
                       onChange={(e) => setContatoForm((prev) => ({ ...prev, proximo_contato: e.target.value }))}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-rca-primary focus:ring-2 focus:ring-rca-primary/10"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
+                  <div className="mb-3 flex items-start gap-2">
+                    <Bell size={16} className="mt-0.5 text-amber-600" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Agendar tarefa</p>
+                      <p className="text-xs text-amber-700/80">
+                        Quando chegar a data e hora, a pipeline mostra uma notificação e destaca o card.
+                      </p>
+                    </div>
+                  </div>
+                  <label className="block space-y-1 text-xs font-medium text-slate-500">
+                    Título da tarefa
+                    <input
+                      type="text"
+                      value={contatoForm.tarefa_titulo}
+                      onChange={(e) => setContatoForm((prev) => ({ ...prev, tarefa_titulo: e.target.value }))}
+                      placeholder="Ex.: Ligar para confirmar pedido"
+                      className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                    />
+                  </label>
+                  <label className="mt-3 block space-y-1 text-xs font-medium text-slate-500">
+                    Data e hora da tarefa
+                    <input
+                      type="datetime-local"
+                      value={contatoForm.tarefa_agendada_para}
+                      onChange={(e) => setContatoForm((prev) => ({ ...prev, tarefa_agendada_para: e.target.value }))}
+                      className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                     />
                   </label>
                 </div>

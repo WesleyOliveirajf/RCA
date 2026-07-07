@@ -48,6 +48,7 @@ export async function sbEnrichCardsWithClientes(cards) {
   if (!cards.length) return []
 
   const ids = [...new Set(cards.map((c) => c.cliente_id).filter(Boolean))]
+  const cardIds = cards.map((c) => c.id).filter(Boolean)
   let clientes = []
   if (ids.length > 0 && ids.length <= 100) {
     const { data, error } = await supabase.from('clientes').select('*').in('id', ids)
@@ -58,10 +59,36 @@ export async function sbEnrichCardsWithClientes(cards) {
   }
 
   const map = Object.fromEntries(clientes.map((c) => [c.id, c]))
+  const tarefasByCard = {}
+  if (cardIds.length > 0) {
+    try {
+      const tarefas = []
+      for (let i = 0; i < cardIds.length; i += 50) {
+        const batchIds = cardIds.slice(i, i + 50)
+        const { data, error: tarefasError } = await supabase
+          .from('lead_tarefas')
+          .select('*')
+          .in('card_id', batchIds)
+          .eq('status', 'pendente')
+          .order('agendado_para', { ascending: true })
+          .order('vencimento', { ascending: true })
+        if (tarefasError) throw tarefasError
+        tarefas.push(...(data ?? []))
+      }
+      for (const tarefa of tarefas) {
+        if (!tarefasByCard[tarefa.card_id]) tarefasByCard[tarefa.card_id] = []
+        tarefasByCard[tarefa.card_id].push(tarefa)
+      }
+    } catch (err) {
+      console.warn('Tarefas pendentes não carregadas:', err.message)
+    }
+  }
+
   return cards.map((card) => ({
     ...card,
     valor_proposta: card.valor_proposta != null ? Number(card.valor_proposta) : null,
     cliente: map[card.cliente_id] ?? null,
+    tarefas_pendentes: tarefasByCard[card.id] ?? [],
   }))
 }
 
@@ -355,19 +382,79 @@ export async function sbCreateContato(dados) {
   const userId = await sessionUserId()
   if (!userId) throw new Error('Usuário não autenticado')
 
-  const { proximo_contato, ...contatoDados } = dados
+  const { proximo_contato, tarefa_agendada_para, ...contatoDados } = dados
   const payload = { ...contatoDados, usuario_id: userId }
   const { data, error } = await supabase.from('contatos').insert(payload).select().single()
   if (error) throw error
 
-  if (proximo_contato && dados.card_id) {
+  if ((proximo_contato || tarefa_agendada_para) && dados.card_id) {
     await supabase
       .from('pipeline_cards')
-      .update({ proximo_contato })
+      .update({ proximo_contato: proximo_contato || tarefa_agendada_para.slice(0, 10) })
       .eq('id', dados.card_id)
   }
 
   return data
+}
+
+export async function sbCreateLeadTarefa(dados) {
+  const userId = await sessionUserId()
+  if (!userId) throw new Error('Usuário não autenticado')
+
+  const agendada = new Date(dados.agendado_para)
+  if (Number.isNaN(agendada.getTime())) {
+    throw new Error('Data e hora da tarefa inválidas')
+  }
+
+  const payload = {
+    card_id: dados.card_id,
+    cliente_id: dados.cliente_id,
+    usuario_id: userId,
+    titulo: dados.titulo,
+    descricao: dados.descricao || null,
+    tipo: dados.tipo || 'contato',
+    vencimento: agendada.toISOString().slice(0, 10),
+    agendado_para: agendada.toISOString(),
+  }
+
+  const { data, error } = await supabase
+    .from('lead_tarefas')
+    .insert(payload)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function sbFetchTarefasPendentes({ vencidas = false } = {}) {
+  let query = supabase
+    .from('lead_tarefas')
+    .select('*')
+    .eq('status', 'pendente')
+    .order('agendado_para', { ascending: true })
+    .limit(50)
+
+  if (vencidas) {
+    query = query.lte('agendado_para', new Date().toISOString())
+  }
+
+  const { data, error } = await query
+  if (!error) return data ?? []
+
+  let fallback = supabase
+    .from('lead_tarefas')
+    .select('*')
+    .eq('status', 'pendente')
+    .order('vencimento', { ascending: true })
+    .limit(50)
+
+  if (vencidas) {
+    fallback = fallback.lte('vencimento', new Date().toISOString().slice(0, 10))
+  }
+
+  const { data: fallbackData, error: fallbackError } = await fallback
+  if (fallbackError) throw fallbackError
+  return fallbackData ?? []
 }
 
 // ── Qualificação ────────────────────────────────────────────────────────────

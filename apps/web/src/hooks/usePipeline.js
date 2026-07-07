@@ -63,6 +63,11 @@ export function usePipeline() {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lead_tarefas' },
+        () => { fetchCards({ silent: true }) }
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -140,7 +145,7 @@ export function usePipeline() {
         liberado: card?.liberado,
       })
     ) {
-      throw new Error('Somente administradores podem liberar leads')
+      throw new Error('Este lead não pode ser liberado')
     }
 
     // Optimistic update
