@@ -24,7 +24,7 @@ import { useSync } from '@/hooks/useSync'
 import { useAuth } from '@/contexts/AuthContext'
 import { podeMoverCard, podeLiberar, precisaLiberacaoParaMover, MSG_LEAD_NAO_LIBERADO, formatCurrency, PRIORIDADE_CORES, getColumnOrder, saveColumnOrder, orderedEtapas, getColumnLabels, saveColumnLabels, getPipelineColumns, getCustomColumns, saveCustomColumns, createCustomColumn } from '@/lib/utils'
 import { Search, Filter, RefreshCw, AlertCircle, ShieldCheck, CheckCircle2, MapPin, GripVertical, Plus, X, Bell } from 'lucide-react'
-import { sbFetchTarefasPendentes } from '@/lib/supabaseData'
+import { sbConcluirLeadTarefa, sbFetchTarefasPendentes } from '@/lib/supabaseData'
 
 /**
  * Preview card exibido durante drag-and-drop.
@@ -66,7 +66,7 @@ function CardDragPreview({ card }) {
   )
 }
 
-function SortableColumnWrapper({ etapa, cards, activeCard, canDrop, isAdmin, onLiberar, onCardContextMenu, onCardClick, disabled, label, onLabelChange }) {
+function SortableColumnWrapper({ etapa, cards, canDrop, isAdmin, onLiberar, onCardContextMenu, onCardClick, disabled, label, onLabelChange }) {
   const {
     attributes,
     listeners,
@@ -128,6 +128,7 @@ export function KanbanBoard() {
   const [newColumnName, setNewColumnName] = useState('')
   const [createColumnError, setCreateColumnError] = useState(null)
   const [tarefasNotificacao, setTarefasNotificacao] = useState([])
+  const [concluindoTarefaId, setConcluindoTarefaId] = useState(null)
 
   function handleRenameColumn(etapaId, newLabel) {
     setColumnLabels((prev) => {
@@ -382,6 +383,41 @@ export function KanbanBoard() {
     }
   }
 
+  async function handleConcluirTarefa(tarefa) {
+    const snapshotTarefas = tarefasNotificacao
+    const snapshotCards = cards
+
+    setConcluindoTarefaId(tarefa.id)
+    setMoveError(null)
+    setTarefasNotificacao((prev) => prev.filter((item) => item.id !== tarefa.id))
+    setCards((prev) =>
+      prev.map((card) => {
+        if (card.id !== tarefa.card_id) return card
+        const tarefasPendentes = (card.tarefas_pendentes || []).filter((item) => item.id !== tarefa.id)
+        const proximaTarefa = tarefasPendentes[0]
+        return {
+          ...card,
+          proximo_contato: proximaTarefa
+            ? (proximaTarefa.agendado_para || proximaTarefa.vencimento || '').slice(0, 10) || null
+            : null,
+          tarefas_pendentes: tarefasPendentes,
+        }
+      })
+    )
+
+    try {
+      await sbConcluirLeadTarefa(tarefa.id)
+      setLiberacaoMsg('Tarefa concluída com sucesso.')
+      await refetch({ silent: true })
+    } catch (err) {
+      setTarefasNotificacao(snapshotTarefas)
+      setCards(snapshotCards)
+      setMoveError(err.message || 'Não foi possível concluir a tarefa')
+    } finally {
+      setConcluindoTarefaId(null)
+    }
+  }
+
   function handleDragCancel() {
     setActiveCard(null)
   }
@@ -598,10 +634,21 @@ export function KanbanBoard() {
                 {tarefasNotificacao.slice(0, 3).map((tarefa) => {
                   const card = cards.find((item) => item.id === tarefa.card_id)
                   return (
-                    <p key={tarefa.id} className="truncate text-xs text-amber-800/90">
-                      <span className="font-semibold">{tarefa.titulo}</span>
-                      {card?.cliente?.nome_fantasia ? ` • ${card.cliente.nome_fantasia}` : ''}
-                    </p>
+                    <div key={tarefa.id} className="flex flex-col gap-2 rounded-xl bg-white/55 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="min-w-0 truncate text-xs text-amber-800/90">
+                        <span className="font-semibold">{tarefa.titulo}</span>
+                        {card?.cliente?.nome_fantasia ? ` • ${card.cliente.nome_fantasia}` : ''}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleConcluirTarefa(tarefa)}
+                        disabled={concluindoTarefaId === tarefa.id}
+                        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <CheckCircle2 size={13} />
+                        {concluindoTarefaId === tarefa.id ? 'Concluindo...' : 'Concluir tarefa'}
+                      </button>
+                    </div>
                   )
                 })}
               </div>

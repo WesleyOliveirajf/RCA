@@ -457,6 +457,19 @@ export async function sbFetchTarefasPendentes({ vencidas = false } = {}) {
   return fallbackData ?? []
 }
 
+export async function sbConcluirLeadTarefa(tarefaId) {
+  const { data, error } = await supabase
+    .from('lead_tarefas')
+    .update({ status: 'concluida' })
+    .eq('id', tarefaId)
+    .select()
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) throw new Error('Tarefa não encontrada ou sem permissão para concluir.')
+  return data
+}
+
 // ── Qualificação ────────────────────────────────────────────────────────────
 
 const ETAPA_QUALIFICACAO = 'primeiro_contato'
