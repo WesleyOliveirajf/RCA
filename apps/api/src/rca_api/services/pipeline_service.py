@@ -21,6 +21,10 @@ from rca_api.schemas.pipeline import (
 
 NUTRICAO_MOTIVOS = {"timing_ruim", "decisor_errado"}
 
+
+def _agendado_para_de_vencimento(vencimento: date) -> str:
+    return datetime(vencimento.year, vencimento.month, vencimento.day, tzinfo=timezone.utc).isoformat()
+
 ETAPA_PARA_STATUS = {
     "inativos": "inativo",
     "primeiro_contato": "em_contato",
@@ -152,6 +156,7 @@ class PipelineService:
         if dados.motivo in NUTRICAO_MOTIVOS:
             acao = "nutricao_90_dias"
             segmento = f"nutricao_{dados.motivo}"
+            vencimento_requalificacao = hoje + timedelta(days=90)
             tarefa = self._repo.criar_tarefa(
                 {
                     "card_id": card_id,
@@ -159,7 +164,8 @@ class PipelineService:
                     "usuario_id": user.id,
                     "titulo": "Requalificar este lead em 90 dias",
                     "tipo": "requalificacao",
-                    "vencimento": (hoje + timedelta(days=90)).isoformat(),
+                    "vencimento": vencimento_requalificacao.isoformat(),
+                    "agendado_para": _agendado_para_de_vencimento(vencimento_requalificacao),
                 }
             )
             nutricao = self._repo.upsert_nutricao(
@@ -202,6 +208,7 @@ class PipelineService:
                     "titulo": "Revisar retenção LGPD deste lead",
                     "tipo": "lgpd_revisao",
                     "vencimento": retencao_ate.isoformat(),
+                    "agendado_para": _agendado_para_de_vencimento(retencao_ate),
                 }
             )
             nutricao = None

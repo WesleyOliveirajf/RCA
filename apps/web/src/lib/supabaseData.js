@@ -249,16 +249,20 @@ export async function sbDesqualificarLead(card, dados) {
   })
   if (desqError) throw desqError
 
+  const agendadoParaDeVencimento = (date) => `${dataISO(date)}T00:00:00.000Z`
+
   const tarefa = nutricao
     ? {
         titulo: 'Requalificar este lead em 90 dias',
         tipo: 'requalificacao',
         vencimento: dataISO(in90),
+        agendado_para: agendadoParaDeVencimento(in90),
       }
     : {
         titulo: 'Revisar retenção LGPD deste lead',
         tipo: 'lgpd_revisao',
         vencimento: dataISO(in365),
+        agendado_para: agendadoParaDeVencimento(in365),
       }
 
   const { error: tarefaError } = await supabase.from('lead_tarefas').insert({
