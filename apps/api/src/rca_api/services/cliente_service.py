@@ -36,11 +36,23 @@ class ClienteService:
     def criar(self, dados: ClienteCreate, user: CurrentUser) -> dict:
         if user.perfil not in ("supervisor", "admin", "superadmin", "vendedor"):
             raise ForbiddenError("Sem permissão para criar clientes")
-        return self._repo.inserir(dados.model_dump(exclude_none=True))
+        payload = dados.model_dump(mode="json", exclude_none=True)
+        cliente = self._repo.inserir(payload)
+        self._pipeline_repo.criar(
+            {
+                "cliente_id": cliente["id"],
+                "etapa": "inativos",
+                "responsavel_id": user.id,
+                "prioridade": "media",
+                "posicao": 0,
+                "score": 0,
+            }
+        )
+        return cliente
 
     def atualizar(self, cliente_id: str, dados: ClienteUpdate, user: CurrentUser) -> dict:
         self._validar_acesso(user, cliente_id)
-        return self._repo.atualizar(cliente_id, dados.model_dump(exclude_none=True))
+        return self._repo.atualizar(cliente_id, dados.model_dump(mode="json", exclude_none=True))
 
     def historico(self, cliente_id: str, user: CurrentUser) -> list[dict]:
         self._validar_acesso(user, cliente_id)

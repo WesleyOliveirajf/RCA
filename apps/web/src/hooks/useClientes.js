@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
-import { sbFetchClientes, sbFetchCliente, sbFetchHistoricoCliente } from '@/lib/supabaseData'
+import { sbFetchClientes, sbFetchCliente, sbFetchHistoricoCliente, sbCriarCliente } from '@/lib/supabaseData'
 
 function buildQuery(filtros) {
   const params = new URLSearchParams()
@@ -41,7 +41,12 @@ export function useClientes(filtros = {}) {
   }, [fetchClientes])
 
   async function criarCliente(dados) {
-    const novo = await api.post('/api/clientes', dados)
+    let novo
+    try {
+      novo = await api.post('/api/clientes', dados)
+    } catch {
+      novo = await sbCriarCliente(dados)
+    }
     setClientes((prev) => [novo, ...prev])
     return novo
   }

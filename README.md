@@ -73,5 +73,6 @@ cd apps/web && npm run dev
 
 ## Documentação
 
+- [Guia de memória para agentes (AGENTS.md)](./AGENTS.md) — contexto permanente, armadilhas e changelog de correções
 - [SDD completo](./SDD_Sistema_RCA.md)
 - [Arquitetura detalhada](./docs/ARCHITECTURE.md)

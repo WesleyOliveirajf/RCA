@@ -33,6 +33,23 @@ export async function sbFetchHistoricoCliente(clienteId) {
   return data ?? []
 }
 
+export async function sbCriarCliente(dados) {
+  const { data, error } = await supabase.rpc('fn_criar_cliente', {
+    p_razao_social: dados.razao_social,
+    p_nome_fantasia: dados.nome_fantasia ?? null,
+    p_cnpj: dados.cnpj ?? null,
+    p_telefone: dados.telefone ?? null,
+    p_email: dados.email ?? null,
+    p_endereco: dados.endereco ?? null,
+    p_cidade: dados.cidade ?? null,
+    p_estado: dados.estado ?? null,
+    p_segmento: dados.segmento ?? null,
+    p_nome_contato: dados.nome_contato ?? null,
+  })
+  if (error) throw new Error(error.message)
+  return data
+}
+
 // ── Pipeline ────────────────────────────────────────────────────────────────
 
 export async function sbFetchPipelineCards() {
